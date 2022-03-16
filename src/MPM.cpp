@@ -25,6 +25,7 @@ void MPM::initialise()
     // Initialise vectors.
     m_boundary.resize(m_resolutionX*m_resolutionY, 0);
     m_gridMass.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
+    m_gridVelocity.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
     // // Initialise VAO.
     m_vao = ngl::vaoFactoryCast<ngl::MultiBufferVAO>(ngl::VAOFactory::createVAO(ngl::multiBufferVAO,GL_POINTS));
@@ -42,7 +43,7 @@ void MPM::initialise()
         for(int j = bottom+1; j<=top+1; ++j)
         {
             m_position.push_back({static_cast<float>(i),static_cast<float>(j),0.0f});
-            m_velocity.push_back(0.0f);
+            m_velocity.push_back({3.0f,2.0f,0.0f});
             m_mass.push_back(5.0f);
             m_boundary[i*m_resolutionX+i] = 1;
             ++m_numParticles;
@@ -114,6 +115,10 @@ void MPM::simulate()
 void MPM::particleToGrid()
 {
     std::fill(m_gridMass.begin(), m_gridMass.end(), 0.0f);
+    std::fill(m_gridVelocity.begin(), m_gridVelocity.end(), 0.0f);
+    
+    std::vector<ngl::Vec3> velSum;
+    velSum.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
     for(int k=0; k<m_numParticles; ++k)
     {
@@ -124,9 +129,21 @@ void MPM::particleToGrid()
             for (int j=y_index; j<y_index+4; ++j)
             {
                 if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
-                    m_gridMass[j*(m_resolutionX+1)+i] += m_mass[k]*interpolate(i,j,m_position[k]);
+                {
+                    float weightedMass = m_mass[k]*interpolate(i,j,m_position[k]);
+                    m_gridMass[j*(m_resolutionX+1)+i] += weightedMass;
+                    velSum[j*(m_resolutionX+1)+i] += weightedMass*m_velocity[k];
+                }
             }
         }
+    }
+
+    for (int i=0; i<m_gridVelocity.size(); ++i)
+    {
+        if(velSum[i].m_x != 0)
+             m_gridVelocity[i].m_x = velSum[i].m_x/m_gridMass[i];
+        if(velSum[i].m_y != 0)
+             m_gridVelocity[i].m_y = velSum[i].m_y/m_gridMass[i];
     }
 }
 
@@ -165,17 +182,6 @@ void MPM::gridToParticle()
 
 void MPM::render()
 {
-    // std::cout<<"RENDERING\n";
-    std::cout<<"\n*******************************\nMass Field\n";
-    for(int j=m_resolutionY; j>=0; --j)
-    {
-        for(int i=0; i<m_resolutionX+1; ++i)
-        {
-            std::cout<<m_gridMass[j*(m_resolutionX+1)+i]<<' ';
-        }
-        std::cout<<'\n';
-    }
-
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
 
