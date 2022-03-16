@@ -47,6 +47,7 @@ class MPM
 
 
         // Simulation settings
+        bool m_first;
         float m_gridsize;
         //----------------------------------------------------------------------------------------------------------------------
         /// @brief the resolution of the simulation
@@ -81,8 +82,7 @@ class MPM
         float bSpline(float x);
 
         void particleToGrid();
-        void computeDensity();
-        void computeVolume();
+        void computeDensityAndVolume();
         void updateGridVelocity();
         void collision();
         void updateDeformationGradients();

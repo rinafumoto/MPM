@@ -14,13 +14,12 @@ auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
 void MPM::initialise()
 {
     // std::cout << std::setprecision(2) << std::fixed;
-
+    m_first = true;
     m_gridsize = 1.0f;
     m_resolutionX = 10+2;
     m_resolutionY = 10+2;
     m_timestep = 0.1f;
     m_force = ngl::Vec3(0,-9.8f,0);
-
 
     // Initialise vectors.
     m_boundary.resize(m_resolutionX*m_resolutionY, 0);
@@ -104,8 +103,11 @@ float MPM::bSpline(float x)
 void MPM::simulate()
 {
     particleToGrid();
-    // computeDensity();
-    // computeVolume();
+    if(m_first)
+    {
+        computeDensityAndVolume();
+        m_first = false;
+    }
     // updateGridVelocity();
     // collision();
     // updateDeformationGradients();
@@ -147,14 +149,26 @@ void MPM::particleToGrid()
     }
 }
 
-void MPM::computeDensity()
+void MPM::computeDensityAndVolume()
 {
-
-}
-
-void MPM::computeVolume()
-{
-
+    m_density.resize(m_numParticles, 0.0f);
+    m_volume.resize(m_numParticles, 0.0f);
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        int x_index = static_cast<int>(m_position[k].m_x)-1;
+        int y_index = static_cast<int>(m_position[k].m_y)-1;
+        for (int i=x_index; i<x_index+4; ++i)
+        {
+            for (int j=y_index; j<y_index+4; ++j)
+            {
+                if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
+                {
+                    m_density[k] += m_gridMass[j*(m_resolutionX+1)+i]*interpolate(i,j,m_position[k])/pow(m_gridsize,2.0f);
+                }
+            }
+        }
+        m_volume[k] = m_mass[k]/m_density[k];
+    }
 }
 
 void MPM::updateGridVelocity()
