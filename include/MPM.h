@@ -32,6 +32,7 @@ class MPM
         std::vector<float> m_density;
 
         // Grid properties
+        std::vector<float> m_gridMass;
         std::vector<ngl::Vec3> m_gridVelocity;
         std::vector<ngl::Vec3> m_deformationGradientE;
         std::vector<ngl::Vec3> m_deformationGradientP;
@@ -64,7 +65,7 @@ class MPM
         /// @brief the number of particles
         //----------------------------------------------------------------------------------------------------------------------
         size_t m_numParticles;
-        
+
         //----------------------------------------------------------------------------------------------------------------------
         /// @brief Mersenne Twister pseudo-random generator of 32-bit numbers with a state size of 19937 bits
         //----------------------------------------------------------------------------------------------------------------------
@@ -74,6 +75,18 @@ class MPM
         /// @brief multi buffer VAO to store data for the simulation
         //----------------------------------------------------------------------------------------------------------------------
         std::unique_ptr<ngl::MultiBufferVAO> m_vao;
+
+        // Functions
+        float interpolate(float i, float j, ngl::Vec3 x);
+        float bSpline(float x);
+
+        void particleToGrid();
+        void computeDensity();
+        void computeVolume();
+        void updateGridVelocity();
+        void collision();
+        void updateDeformationGradients();
+        void gridToParticle();
 
 };
 

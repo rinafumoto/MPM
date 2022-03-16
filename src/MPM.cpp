@@ -1,6 +1,7 @@
 #include "MPM.h"
 #include <iostream>
 #include <iomanip>
+#include <math.h>
 #include <ngl/ShaderLib.h>
 #include <ngl/VAOFactory.h>
 #include <ngl/Util.h>
@@ -12,17 +13,18 @@ auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
 
 void MPM::initialise()
 {
-    m_gridsize = 1;
+    // std::cout << std::setprecision(2) << std::fixed;
+
+    m_gridsize = 1.0f;
     m_resolutionX = 10+2;
     m_resolutionY = 10+2;
-    m_timestep = 0.1;
-    m_force = ngl::Vec3(0,-9.8,0);
+    m_timestep = 0.1f;
+    m_force = ngl::Vec3(0,-9.8f,0);
 
 
     // Initialise vectors.
     m_boundary.resize(m_resolutionX*m_resolutionY, 0);
-    // m_velocityX.resize((m_resolutionX+1)*m_resolutionY, 0.0f);
-    // m_velocityY.resize(m_resolutionX*(m_resolutionY+1), 0.0f);
+    m_gridMass.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
     // // Initialise VAO.
     m_vao = ngl::vaoFactoryCast<ngl::MultiBufferVAO>(ngl::VAOFactory::createVAO(ngl::multiBufferVAO,GL_POINTS));
@@ -30,15 +32,18 @@ void MPM::initialise()
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    ngl::Vec3 initPos = ngl::Vec3(5,5,0);
-    int initHalfWidth = 4/2;
-    int initHalfHeight = 4/2;
+    int bottom = 3;
+    int left = 3;
+    int top = 7;
+    int right = 7;
 
-    for(int i = initPos.m_x+1-initHalfWidth; i<=initPos.m_x+1+initHalfWidth; ++i)
+    for(int i = left+1; i<=right+1; ++i)
     {
-        for(int j = initPos.m_y+1-initHalfHeight; j<=initPos.m_y+1+initHalfHeight; ++j)
+        for(int j = bottom+1; j<=top+1; ++j)
         {
             m_position.push_back({static_cast<float>(i),static_cast<float>(j),0.0f});
+            m_velocity.push_back(0.0f);
+            m_mass.push_back(5.0f);
             m_boundary[i*m_resolutionX+i] = 1;
             ++m_numParticles;
         }
@@ -76,16 +81,101 @@ void MPM::initialise()
     }
 }
 
+float MPM::interpolate(float i, float j, ngl::Vec3 x)
+{
+    return bSpline((x.m_x-i*m_gridsize)/m_gridsize)*bSpline((x.m_y-j*m_gridsize)/m_gridsize);
+}
+
+float MPM::bSpline(float x)
+{
+    float absoluteX = std::abs(x);
+    if(absoluteX >= 0.0f && absoluteX < 1.0f)
+    {
+        return pow(absoluteX,3.0f)/2.0f-pow(x,2.0f)+2.0f/3.0f;
+    }
+    if(absoluteX >= 1.0f && absoluteX < 2.0f)
+    {
+        return -pow(absoluteX,3.0f)/6.0f+pow(x,2.0f)-2.0f*absoluteX+4.0f/3.0f;
+    }
+    return 0.0f;
+}
+
 void MPM::simulate()
+{
+    particleToGrid();
+    // computeDensity();
+    // computeVolume();
+    // updateGridVelocity();
+    // collision();
+    // updateDeformationGradients();
+    // gridToParticle();
+}
+
+void MPM::particleToGrid()
+{
+    std::fill(m_gridMass.begin(), m_gridMass.end(), 0.0f);
+
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        int x_index = static_cast<int>(m_position[k].m_x)-1;
+        int y_index = static_cast<int>(m_position[k].m_y)-1;
+        for (int i=x_index; i<x_index+4; ++i)
+        {
+            for (int j=y_index; j<y_index+4; ++j)
+            {
+                if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
+                    m_gridMass[j*(m_resolutionX+1)+i] += m_mass[k]*interpolate(i,j,m_position[k]);
+            }
+        }
+    }
+}
+
+void MPM::computeDensity()
 {
 
 }
+
+void MPM::computeVolume()
+{
+
+}
+
+void MPM::updateGridVelocity()
+{
+
+}
+
+void MPM::collision()
+{
+
+}
+
+void MPM::updateDeformationGradients()
+{
+
+}
+
+void MPM::gridToParticle()
+{
+
+}
+
 
 ////////// Render //////////
 
 void MPM::render()
 {
-    std::cout<<"RENDERING\n";
+    // std::cout<<"RENDERING\n";
+    std::cout<<"\n*******************************\nMass Field\n";
+    for(int j=m_resolutionY; j>=0; --j)
+    {
+        for(int i=0; i<m_resolutionX+1; ++i)
+        {
+            std::cout<<m_gridMass[j*(m_resolutionX+1)+i]<<' ';
+        }
+        std::cout<<'\n';
+    }
+
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
 
