@@ -5,6 +5,7 @@
 #include <random>
 #include <ngl/MultiBufferVAO.h>
 #include <memory>
+#include <Eigen/SVD>
 
 class MPM
 {
@@ -30,6 +31,8 @@ class MPM
         std::vector<float> m_mass;
         std::vector<float> m_volume;
         std::vector<float> m_density;
+        std::vector<ngl::Mat3> m_elastic;
+        std::vector<ngl::Mat3> m_plastic;
 
         // Grid properties
         std::vector<float> m_gridMass;
@@ -48,6 +51,10 @@ class MPM
 
         // Simulation settings
         bool m_first;
+        float m_lambda;
+        float m_mu;
+        float m_hardening;
+
         float m_gridsize;
         //----------------------------------------------------------------------------------------------------------------------
         /// @brief the resolution of the simulation
@@ -78,8 +85,11 @@ class MPM
         std::unique_ptr<ngl::MultiBufferVAO> m_vao;
 
         // Functions
-        float interpolate(float i, float j, ngl::Vec3 x);
-        float bSpline(float x);
+        float interpolate(float _i, float _j, ngl::Vec3 _x);
+        float bSpline(float _x);
+        Eigen::Vector3f dInterpolate(float _i, float _j, ngl::Vec3 _x);
+        float dBSpline(float _x);
+        Eigen::Matrix3f eigenMat3(ngl::Mat3 _m);
 
         void particleToGrid();
         void computeDensityAndVolume();

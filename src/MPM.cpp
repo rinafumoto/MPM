@@ -13,6 +13,13 @@ auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
 
 void MPM::initialise()
 {
+
+    float youngs = 1.4*pow(10.0f, 5.0f);
+    float poisson = 0.2f;
+    m_lambda = (youngs*poisson)/((1.0f+poisson)*(1.0f-2.0f*poisson));
+    m_mu = youngs/(2.0f*(1.0f+poisson));
+    m_hardening = 10.0f;
+
     // std::cout << std::setprecision(2) << std::fixed;
     m_first = true;
     m_gridsize = 1.0f;
@@ -49,6 +56,9 @@ void MPM::initialise()
         }
     }
     
+    m_elastic.resize(m_numParticles);
+    m_plastic.resize(m_numParticles);
+
     // Set solid cells on the edge.
     for(int i=0; i<m_resolutionY; ++i)
     {
@@ -81,23 +91,56 @@ void MPM::initialise()
     }
 }
 
-float MPM::interpolate(float i, float j, ngl::Vec3 x)
+float MPM::interpolate(float _i, float _j, ngl::Vec3 _x)
 {
-    return bSpline((x.m_x-i*m_gridsize)/m_gridsize)*bSpline((x.m_y-j*m_gridsize)/m_gridsize);
+    return bSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize);
 }
 
-float MPM::bSpline(float x)
+float MPM::bSpline(float _x)
 {
-    float absoluteX = std::abs(x);
-    if(absoluteX >= 0.0f && absoluteX < 1.0f)
+    if(_x >= 0.0f && _x < 1.0f)
     {
-        return pow(absoluteX,3.0f)/2.0f-pow(x,2.0f)+2.0f/3.0f;
+        return pow(_x,3.0f)/2.0f-pow(_x,2.0f)+2.0f/3.0f;
     }
-    if(absoluteX >= 1.0f && absoluteX < 2.0f)
+    if(_x >= 1.0f && _x < 2.0f)
     {
-        return -pow(absoluteX,3.0f)/6.0f+pow(x,2.0f)-2.0f*absoluteX+4.0f/3.0f;
+        return -pow(_x,3.0f)/6.0f+pow(_x,2.0f)-2.0f*_x+4.0f/3.0f;
     }
     return 0.0f;
+}
+
+Eigen::Vector3f MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
+{
+    return {dBSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
+            bSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
+            0.0f};
+}
+
+float MPM::dBSpline(float _x)
+{
+    if(_x >= 0.0f && _x < 1.0f)
+    {
+        return 3.0f/2.0f*pow(_x,2.0f)-2.0f*_x;
+    }
+    if(_x >= 1.0f && _x < 2.0f)
+    {
+        return -pow(_x,2.0f)/2.0f+2.0f*_x-2.0f;
+    }
+    return 0.0f;
+}
+
+
+Eigen::Matrix3f MPM::eigenMat3(ngl::Mat3 _m)
+{
+    Eigen::Matrix3f m;
+    for(int i=0; i<3; ++i)
+    {
+        for(int j=0; j<3; ++j)
+        {
+            m(i,j) = _m.m_m[i][j];
+        }
+    }
+    return m;
 }
 
 void MPM::simulate()
@@ -108,7 +151,7 @@ void MPM::simulate()
         computeDensityAndVolume();
         m_first = false;
     }
-    // updateGridVelocity();
+    updateGridVelocity();
     // collision();
     // updateDeformationGradients();
     // gridToParticle();
@@ -147,6 +190,34 @@ void MPM::particleToGrid()
         if(velSum[i].m_y != 0)
              m_gridVelocity[i].m_y = velSum[i].m_y/m_gridMass[i];
     }
+
+    // std::cout<<"*******************************\nMass Field\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridMass[j*(m_resolutionX+1)+i]<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nVelocity Field X\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nVelocity Field Y\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
 }
 
 void MPM::computeDensityAndVolume()
@@ -173,6 +244,68 @@ void MPM::computeDensityAndVolume()
 
 void MPM::updateGridVelocity()
 {
+    std::vector<Eigen::Vector3f> force;
+    force.resize((m_resolutionX+1)*(m_resolutionY+1), {0.0f, 0.0f, 0.0f});
+
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        Eigen::JacobiSVD<Eigen::Matrix3f> svd(eigenMat3(m_elastic[k]), Eigen::ComputeFullU | Eigen::ComputeFullV);
+        auto mu = m_mu*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
+        auto lambda = m_lambda*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
+        auto R = svd.matrixU()*svd.matrixV().transpose();
+        auto dLeft = 2.0f*mu*(eigenMat3(m_elastic[k])-R)*eigenMat3(m_elastic[k]).transpose();
+        auto dRight = (lambda*(m_elastic[k].determinant()-1.0f)*m_elastic[k].determinant())*eigenMat3(ngl::Mat3());
+        auto temp = -m_volume[k]*(dLeft+dRight);
+
+        // std::cout<<"mu: "<<mu<<'\n';
+        // std::cout<<"lambda: "<<lambda<<'\n';
+        // std::cout<<"R: "<<R<<'\n';
+        // std::cout<<"dLeft: "<<dLeft<<'\n';
+        // std::cout<<"dRight: "<<dRight<<'\n';
+        // std::cout<<"temp: "<<temp<<'\n';
+
+        int x_index = static_cast<int>(m_position[k].m_x)-1;
+        int y_index = static_cast<int>(m_position[k].m_y)-1;
+        for (int i=x_index; i<x_index+4; ++i)
+        {
+            for (int j=y_index; j<y_index+4; ++j)
+            {
+                if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
+                {
+                    force[j*(m_resolutionX+1)+i] += temp*dInterpolate(i,j,m_position[k]);
+                }
+            }
+        }
+    }
+
+    // std::cout<<"*******************************\nForce Field X\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<force[j*(m_resolutionX+1)+i][0]<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nForce Field Y\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<force[j*(m_resolutionX+1)+i][1]<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nForce Field Z\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<force[j*(m_resolutionX+1)+i][2]<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+
 
 }
 
@@ -196,6 +329,20 @@ void MPM::gridToParticle()
 
 void MPM::render()
 {
+    // Eigen::MatrixXf m = Eigen::MatrixXf::Random(3,3);
+    // Eigen::JacobiSVD<Eigen::MatrixXf> svd(m, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    // std::cout << "Here is the matrix m:" << '\n' << m << '\n';
+    // std::cout << "Its singular values are:" <<'\n'<< svd.singularValues() <<'\n';
+    // std::cout << "Its left singular vectors are the columns of the Full U matrix:" <<'\n'<< svd.matrixU() <<'\n';
+    // std::cout << "Its right singular vectors are the columns of the Full V matrix:" <<'\n'<< svd.matrixV() <<'\n';
+    // Eigen::MatrixXf m_singularMatt = Eigen::Matrix3f::Zero();
+    // for(int i=0; i<3; ++i)
+    // {
+    //     m_singularMatt(i,i)=svd.singularValues()(i);
+    // }
+    // std::cout << "Its singular values matrix:" <<'\n'<< m_singularMatt <<'\n';
+    // std::cout << "Reconstructed matrix is:" << '\n' << svd.matrixU()*m_singularMatt*svd.matrixV().transpose() << '\n';
+
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
 
