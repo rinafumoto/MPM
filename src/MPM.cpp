@@ -50,7 +50,7 @@ void MPM::initialise()
         for(int j = bottom+1; j<=top+1; ++j)
         {
             m_position.push_back({static_cast<float>(i),static_cast<float>(j),0.0f});
-            m_velocity.push_back({3.0f,2.0f,0.0f});
+            m_velocity.push_back(0.0f);
             m_mass.push_back(5.0f);
             m_boundary[i*m_resolutionX+i] = 1;
             ++m_numParticles;
@@ -139,19 +139,6 @@ Eigen::Matrix3f MPM::eigenMat3(ngl::Mat3 _m)
         for(int j=0; j<3; ++j)
         {
             m(i,j) = _m.m_m[i][j];
-        }
-    }
-    return m;
-}
-
-ngl::Mat3 MPM::nglMat3(Eigen::Matrix3f _m)
-{
-    ngl::Mat3 m;
-    for(int i=0; i<3; ++i)
-    {
-        for(int j=0; j<3; ++j)
-        {
-            m.m_m[i][j] = _m(i,j);
         }
     }
     return m;
@@ -322,10 +309,12 @@ void MPM::updateGridVelocity()
     //     std::cout<<'\n';
     // }
 
-    // Add external forces
+    // Add external forces and update velocities
     for(int i=0; i<forces.size(); ++i)
     {
         forces[i] += m_force + ngl::Vec3(0.0f, m_gravity*m_gridMass[i], 0.0f);
+        if(m_gridMass[i] != 0.0f)
+            m_gridVelocity[i] += m_timestep / m_gridMass[i] * forces[i];
     }
 
     // std::cout<<"*******************************\nForce Field X\n";
@@ -352,6 +341,34 @@ void MPM::updateGridVelocity()
     //     for(int i=0; i<m_resolutionX+1; ++i)
     //     {
     //         std::cout<<forces[j*(m_resolutionX+1)+i].m_z<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+
+    // std::cout<<"*******************************\nVelocity Field X\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nVelocity Field Y\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nVelocity Field Z\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_z<<' ';
     //     }
     //     std::cout<<'\n';
     // }

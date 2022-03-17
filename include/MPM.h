@@ -91,7 +91,6 @@ class MPM
         Eigen::Vector3f dInterpolate(float _i, float _j, ngl::Vec3 _x);
         float dBSpline(float _x);
         Eigen::Matrix3f eigenMat3(ngl::Mat3 _m);
-        ngl::Mat3 nglMat3(Eigen::Matrix3f _m);
 
         void particleToGrid();
         void computeDensityAndVolume();
