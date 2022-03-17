@@ -26,7 +26,8 @@ void MPM::initialise()
     m_resolutionX = 10+2;
     m_resolutionY = 10+2;
     m_timestep = 0.1f;
-    m_force = ngl::Vec3(0,-9.8f,0);
+    m_force = ngl::Vec3(0.0f);
+    m_gravity = -9.81f;
 
     // Initialise vectors.
     m_boundary.resize(m_resolutionX*m_resolutionY, 0);
@@ -143,6 +144,19 @@ Eigen::Matrix3f MPM::eigenMat3(ngl::Mat3 _m)
     return m;
 }
 
+ngl::Mat3 MPM::nglMat3(Eigen::Matrix3f _m)
+{
+    ngl::Mat3 m;
+    for(int i=0; i<3; ++i)
+    {
+        for(int j=0; j<3; ++j)
+        {
+            m.m_m[i][j] = _m(i,j);
+        }
+    }
+    return m;
+}
+
 void MPM::simulate()
 {
     particleToGrid();
@@ -244,8 +258,8 @@ void MPM::computeDensityAndVolume()
 
 void MPM::updateGridVelocity()
 {
-    std::vector<Eigen::Vector3f> force;
-    force.resize((m_resolutionX+1)*(m_resolutionY+1), {0.0f, 0.0f, 0.0f});
+    std::vector<ngl::Vec3> forces;
+    forces.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
     for(int k=0; k<m_numParticles; ++k)
     {
@@ -272,7 +286,9 @@ void MPM::updateGridVelocity()
             {
                 if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
                 {
-                    force[j*(m_resolutionX+1)+i] += temp*dInterpolate(i,j,m_position[k]);
+                    forces[j*(m_resolutionX+1)+i] += {(temp*dInterpolate(i,j,m_position[k]))[0],
+                                                    (temp*dInterpolate(i,j,m_position[k]))[1],
+                                                    (temp*dInterpolate(i,j,m_position[k]))[2]};
                 }
             }
         }
@@ -283,7 +299,7 @@ void MPM::updateGridVelocity()
     // {
     //     for(int i=0; i<m_resolutionX+1; ++i)
     //     {
-    //         std::cout<<force[j*(m_resolutionX+1)+i][0]<<' ';
+    //         std::cout<<forces[j*(m_resolutionX+1)+i].m_x<<' ';
     //     }
     //     std::cout<<'\n';
     // }
@@ -292,7 +308,7 @@ void MPM::updateGridVelocity()
     // {
     //     for(int i=0; i<m_resolutionX+1; ++i)
     //     {
-    //         std::cout<<force[j*(m_resolutionX+1)+i][1]<<' ';
+    //         std::cout<<forces[j*(m_resolutionX+1)+i].m_y<<' ';
     //     }
     //     std::cout<<'\n';
     // }
@@ -301,11 +317,44 @@ void MPM::updateGridVelocity()
     // {
     //     for(int i=0; i<m_resolutionX+1; ++i)
     //     {
-    //         std::cout<<force[j*(m_resolutionX+1)+i][2]<<' ';
+    //         std::cout<<forces[j*(m_resolutionX+1)+i].m_z<<' ';
     //     }
     //     std::cout<<'\n';
     // }
 
+    // Add external forces
+    for(int i=0; i<forces.size(); ++i)
+    {
+        forces[i] += m_force + ngl::Vec3(0.0f, m_gravity*m_gridMass[i], 0.0f);
+    }
+
+    // std::cout<<"*******************************\nForce Field X\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<forces[j*(m_resolutionX+1)+i].m_x<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nForce Field Y\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<forces[j*(m_resolutionX+1)+i].m_y<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nForce Field Z\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<forces[j*(m_resolutionX+1)+i].m_z<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
 
 }
 
