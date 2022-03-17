@@ -40,7 +40,7 @@ class MPM
         std::vector<ngl::Vec3> m_deformationGradientE;
         std::vector<ngl::Vec3> m_deformationGradientP;
         //----------------------------------------------------------------------------------------------------------------------
-        /// @brief vector for boundary field. 0 for air, 1 for fluid, -1 for solid.
+        /// @brief vector for boundary field. -1 for solid.
         //----------------------------------------------------------------------------------------------------------------------
         std::vector<int> m_boundary;
         //----------------------------------------------------------------------------------------------------------------------
