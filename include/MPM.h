@@ -31,8 +31,8 @@ class MPM
         std::vector<float> m_mass;
         std::vector<float> m_volume;
         std::vector<float> m_density;
-        std::vector<ngl::Mat3> m_elastic;
-        std::vector<ngl::Mat3> m_plastic;
+        std::vector<Eigen::Matrix3f> m_elastic;
+        std::vector<Eigen::Matrix3f> m_plastic;
 
         // Grid properties
         std::vector<float> m_gridMass;
@@ -56,6 +56,8 @@ class MPM
         float m_mu;
         float m_hardening;
         float m_gravity;
+        float m_compression;
+        float m_stretch;
 
         float m_gridsize;
         //----------------------------------------------------------------------------------------------------------------------
@@ -89,9 +91,9 @@ class MPM
         // Functions
         float interpolate(float _i, float _j, ngl::Vec3 _x);
         float bSpline(float _x);
-        Eigen::Vector3f dInterpolate(float _i, float _j, ngl::Vec3 _x);
+        ngl::Vec3 dInterpolate(float _i, float _j, ngl::Vec3 _x);
         float dBSpline(float _x);
-        Eigen::Matrix3f eigenMat3(ngl::Mat3 _m);
+        Eigen::Vector3f eigenVec3(ngl::Vec3 _v);
 
         void particleToGrid();
         void computeDensityAndVolume();

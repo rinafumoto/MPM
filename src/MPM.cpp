@@ -2,9 +2,11 @@
 #include <iostream>
 #include <iomanip>
 #include <math.h>
+// #include <algorithm>
 #include <ngl/ShaderLib.h>
 #include <ngl/VAOFactory.h>
 #include <ngl/Util.h>
+#include <Eigen/LU>
 
 std::mt19937 MPM::m_generator;
 auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
@@ -19,12 +21,14 @@ void MPM::initialise()
     m_lambda = (youngs*poisson)/((1.0f+poisson)*(1.0f-2.0f*poisson));
     m_mu = youngs/(2.0f*(1.0f+poisson));
     m_hardening = 10.0f;
+    m_compression = 0.025f;
+    m_stretch = 0.0075f;
 
     // std::cout << std::setprecision(2) << std::fixed;
     m_first = true;
     m_gridsize = 0.5f;
-    m_resolutionX = 10+2;
-    m_resolutionY = 10+2;
+    m_resolutionX = 20+2;
+    m_resolutionY = 20+2;
     m_timestep = 0.1f;
     m_force = ngl::Vec3(0.0f);
     m_gravity = -9.81f;
@@ -40,10 +44,10 @@ void MPM::initialise()
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    int bottom = 0;
-    int left = 3;
-    int top = 5;
-    int right = 5;
+    int bottom = 5;
+    int left = 5;
+    int top = 8;
+    int right = 8;
 
     for(int i = left+1; i<=right+1; ++i)
     {
@@ -56,8 +60,8 @@ void MPM::initialise()
         }
     }
     
-    m_elastic.resize(m_numParticles);
-    m_plastic.resize(m_numParticles);
+    m_elastic.resize(m_numParticles, Eigen::Matrix3f::Identity());
+    m_plastic.resize(m_numParticles, Eigen::Matrix3f::Identity());
 
     // Set solid cells on the edge.
     m_normal.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
@@ -117,7 +121,7 @@ float MPM::bSpline(float _x)
     return 0.0f;
 }
 
-Eigen::Vector3f MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
+ngl::Vec3 MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
 {
     return {dBSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
             bSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
@@ -137,18 +141,9 @@ float MPM::dBSpline(float _x)
     return 0.0f;
 }
 
-
-Eigen::Matrix3f MPM::eigenMat3(ngl::Mat3 _m)
+Eigen::Vector3f MPM::eigenVec3(ngl::Vec3 _v)
 {
-    Eigen::Matrix3f m;
-    for(int i=0; i<3; ++i)
-    {
-        for(int j=0; j<3; ++j)
-        {
-            m(i,j) = _m.m_m[i][j];
-        }
-    }
-    return m;
+    return Eigen::Vector3f(_v.m_x, _v.m_y, _v.m_z);
 }
 
 void MPM::simulate()
@@ -161,7 +156,7 @@ void MPM::simulate()
     }
     updateGridVelocity();
     collision();
-    // updateDeformationGradients();
+    updateDeformationGradients();
     // gridToParticle();
 }
 
@@ -257,12 +252,12 @@ void MPM::updateGridVelocity()
 
     for(int k=0; k<m_numParticles; ++k)
     {
-        Eigen::JacobiSVD<Eigen::Matrix3f> svd(eigenMat3(m_elastic[k]), Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Eigen::JacobiSVD<Eigen::Matrix3f> svd(m_elastic[k], Eigen::ComputeFullU | Eigen::ComputeFullV);
         auto mu = m_mu*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
         auto lambda = m_lambda*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
         auto R = svd.matrixU()*svd.matrixV().transpose();
-        auto dLeft = 2.0f*mu*(eigenMat3(m_elastic[k])-R)*eigenMat3(m_elastic[k]).transpose();
-        auto dRight = (lambda*(m_elastic[k].determinant()-1.0f)*m_elastic[k].determinant())*eigenMat3(ngl::Mat3());
+        auto dLeft = 2.0f*mu*(m_elastic[k]-R)*m_elastic[k].transpose();
+        auto dRight = (lambda*(m_elastic[k].determinant()-1.0f)*m_elastic[k].determinant())*Eigen::Matrix3f::Identity();
         auto temp = -m_volume[k]*(dLeft+dRight);
 
         // std::cout<<"mu: "<<mu<<'\n';
@@ -280,9 +275,9 @@ void MPM::updateGridVelocity()
             {
                 if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
                 {
-                    forces[j*(m_resolutionX+1)+i] += {(temp*dInterpolate(i,j,m_position[k]))[0],
-                                                    (temp*dInterpolate(i,j,m_position[k]))[1],
-                                                    (temp*dInterpolate(i,j,m_position[k]))[2]};
+                    forces[j*(m_resolutionX+1)+i] += {(temp*eigenVec3(dInterpolate(i,j,m_position[k])))[0],
+                                                    (temp*eigenVec3(dInterpolate(i,j,m_position[k])))[1],
+                                                    (temp*eigenVec3(dInterpolate(i,j,m_position[k])))[2]};
                 }
             }
         }
@@ -427,7 +422,50 @@ void MPM::collision()
 
 void MPM::updateDeformationGradients()
 {
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        int x_index = static_cast<int>(m_position[k].m_x/m_gridsize)-1;
+        int y_index = static_cast<int>(m_position[k].m_y/m_gridsize)-1;
+        Eigen::Matrix3f gVel = Eigen::Matrix3f::Zero();
+        for (int i=x_index; i<x_index+4; ++i)
+        {
+            for (int j=y_index; j<y_index+4; ++j)
+            {
+                if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
+                {
+                    Eigen::Matrix3f m;
+                    for(int k=0; k<3; ++k)
+                    {
+                        for(int l=0; l<3; ++l)
+                        {
+                            m(k,l) = m_gridVelocity[j*(m_resolutionX+1)+i][k]*dInterpolate(i,j,m_position[k])[l];
+                        }
+                    }
+                    gVel += m;
+                    // std::cout<<"index: "<<i<<' '<<j<<'\n';
+                    // std::cout<<"vel: "<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' '<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' '<<m_gridVelocity[j*(m_resolutionX+1)+i].m_z<<'\n';
+                    // std::cout<<"weighting: "<<dInterpolate(i,j,m_position[k]).m_x<<' '<<dInterpolate(i,j,m_position[k]).m_y<<' '<<dInterpolate(i,j,m_position[k]).m_z<<'\n';
+                }
+            }
+        }
 
+        // std::cout<<"Position: "<<m_position[k].m_x<<' '<<m_position[k].m_y<<'\n';
+        // std::cout<<"gVel:\n"<<gVel<<'\n';
+        m_elastic[k] = (Eigen::Matrix3f::Identity()+m_timestep*gVel)*m_elastic[k];
+
+        Eigen::JacobiSVD<Eigen::Matrix3f> svd(m_elastic[k], Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Eigen::Matrix3f sigma = Eigen::Matrix3f::Zero();
+        for(int i=0; i<3; ++i)
+        {
+            sigma(i,i) = std::clamp(svd.singularValues()(i),1.0f-m_compression,1.0f-m_stretch);
+        }
+        // std::cout<<"sigma: \n"<<sigma<<'\n';
+
+        // std::cout<<"BEFORE: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        m_plastic[k] = svd.matrixV()*sigma.inverse()*svd.matrixU().transpose()*m_elastic[k]*m_plastic[k];
+        m_elastic[k] = svd.matrixU()*sigma*svd.matrixV().transpose();
+        // std::cout<<"AFTER: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+    }
 }
 
 void MPM::gridToParticle()
@@ -472,15 +510,15 @@ void MPM::render()
     // Eigen::MatrixXf m = Eigen::MatrixXf::Random(3,3);
     // Eigen::JacobiSVD<Eigen::MatrixXf> svd(m, Eigen::ComputeFullU | Eigen::ComputeFullV);
     // std::cout << "Here is the matrix m:" << '\n' << m << '\n';
-    // std::cout << "Its singular values are:" <<'\n'<< svd.singularValues() <<'\n';
-    // std::cout << "Its left singular vectors are the columns of the Full U matrix:" <<'\n'<< svd.matrixU() <<'\n';
-    // std::cout << "Its right singular vectors are the columns of the Full V matrix:" <<'\n'<< svd.matrixV() <<'\n';
+    // // std::cout << "Its singular values are:" <<'\n'<< svd.singularValues() <<'\n';
+    // // std::cout << "Its left singular vectors are the columns of the Full U matrix:" <<'\n'<< svd.matrixU() <<'\n';
+    // // std::cout << "Its right singular vectors are the columns of the Full V matrix:" <<'\n'<< svd.matrixV() <<'\n';
     // Eigen::MatrixXf m_singularMatt = Eigen::Matrix3f::Zero();
     // for(int i=0; i<3; ++i)
     // {
     //     m_singularMatt(i,i)=svd.singularValues()(i);
     // }
-    // std::cout << "Its singular values matrix:" <<'\n'<< m_singularMatt <<'\n';
+    // // std::cout << "Its singular values matrix:" <<'\n'<< m_singularMatt <<'\n';
     // std::cout << "Reconstructed matrix is:" << '\n' << svd.matrixU()*m_singularMatt*svd.matrixV().transpose() << '\n';
 
     const auto ColourShader = "ColourShader";
