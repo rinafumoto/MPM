@@ -39,7 +39,7 @@ void MPM::initialise()
 
     // std::cout << std::setprecision(2) << std::fixed;
     m_first = true;
-    m_gridsize = 0.001f;
+    m_gridsize = 0.1f;
     m_resolutionX = 100+2;
     m_resolutionY = 100+2;
     m_timestep = 0.01f;
@@ -57,10 +57,10 @@ void MPM::initialise()
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    int bottom = 70;
-    int left = 30;
-    int top = 90;
-    int right = 70;
+    int bottom = 5;
+    int left = 40;
+    int top = 20;
+    int right = 60;
 
     // Initialise particles at cell corners
     float initialMass = initialDensity*m_gridsize*m_gridsize;
@@ -109,19 +109,23 @@ void MPM::initialise()
     m_solid.reserve(m_resolutionX*2 + m_resolutionX*2 - 4);
     for(int i=0; i<m_resolutionY+1; ++i)
     {
-        m_normal[i*(m_resolutionX+1)].m_x = m_gridsize;
-        m_normal[i*(m_resolutionX+1)+1].m_x = m_gridsize;
-        m_normal[i*(m_resolutionX+1)+m_resolutionX].m_x = -m_gridsize;
-        m_normal[i*(m_resolutionX+1)+m_resolutionX-1].m_x = -m_gridsize;
+        m_normal[i*(m_resolutionX+1)].m_x = 1.0f;
+        m_normal[i*(m_resolutionX+1)+1].m_x = 1.0f;
+        m_normal[i*(m_resolutionX+1)+m_resolutionX].m_x = -1.0f;
+        m_normal[i*(m_resolutionX+1)+m_resolutionX-1].m_x = -1.0f;
         m_solid.push_back({0.5f*m_gridsize,(static_cast<float>(i)+0.5f)*m_gridsize, 0.0f});
         m_solid.push_back({(m_resolutionX-0.5f)*m_gridsize,(static_cast<float>(i)+0.5f)*m_gridsize, 0.0f});
     }
     for(int i=0; i<m_resolutionX+1; ++i)
     {
-        m_normal[i].m_y = m_gridsize;
-        m_normal[m_resolutionX+1+i].m_y = m_gridsize;
-        m_normal[(m_resolutionX+1)*(m_resolutionY+1)-1-i].m_y = -m_gridsize;
-        m_normal[(m_resolutionX+1)*m_resolutionY-1-i].m_y = -m_gridsize;
+        m_normal[i].m_y = 1.0f;
+        m_normal[m_resolutionX+1+i].m_y = 1.0f;
+        m_normal[(m_resolutionX+1)*(m_resolutionY+1)-1-i].m_y = -1.0f;
+        m_normal[(m_resolutionX+1)*m_resolutionY-1-i].m_y = -1.0f;
+        m_normal[i].normalize();
+        m_normal[m_resolutionX+1+i].normalize();
+        m_normal[(m_resolutionX+1)*(m_resolutionY+1)-1-i].normalize();
+        m_normal[(m_resolutionX+1)*m_resolutionY-1-i].normalize();        
         m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,0.5f*m_gridsize, 0.0f});
         m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,(m_resolutionY-0.5f)*m_gridsize, 0.0f});        
     }
@@ -335,13 +339,6 @@ void MPM::updateGridVelocity()
                     // std::cout<<"index: "<<i<<' '<<j<<'\n';
                     Eigen::Vector3f f = -m_volume[k]*dGD*m_elastic[k].transpose()*eigenVec3(dInterpolate(i,j,m_position[k]));
                     forces[j*(m_resolutionX+1)+i] += {f[0], f[1], f[2]};
-                    // forces[j*(m_resolutionX+1)+i] += {(eigenVec3(dInterpolate(i,j,m_position[k])))[0],
-                    //                                 (eigenVec3(dInterpolate(i,j,m_position[k])))[1],
-                    //                                 (eigenVec3(dInterpolate(i,j,m_position[k])))[2]};
-                    // forces[j*(m_resolutionX+1)+i] += {(temp*Eigen::Vector3f(1.0f, 1.0f, 1.0f))[0],
-                    //                                 (temp*Eigen::Vector3f(1.0f, 1.0f, 1.0f))[1],
-                    //                                 (temp*Eigen::Vector3f(1.0f, 1.0f, 1.0f))[2]};
-                    // std::cout<<"force: \n"<<eigenVec3(dInterpolate(i,j,m_position[k]))<<'\n';
                 }
             }
         }
@@ -451,6 +448,7 @@ void MPM::gridCollision()
         vn = m_gridVelocity[i].dot(m_normal[i]);
         if(vn<0)
         {
+            // std::cout<<"vn: "<<vn<<'\n';
             m_gridVelocity[i] -= m_normal[i]*vn;
         }
     }
@@ -649,14 +647,14 @@ void MPM::render(size_t _w, size_t _h)
     ngl::ShaderLib::setUniform("viewportSize",ngl::Vec2(_w,_h));
     ngl::ShaderLib::setUniform("MVP",project*view);
 
-    // m_vao->bind();
-    //     m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
-    //     m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-    //     m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
-    //     m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
-    //     m_vao->setNumIndices(m_numParticles);
-    //     m_vao->draw();
-    // m_vao->unbind();
+    m_vao->bind();
+        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
+        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+        m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
+        m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+        m_vao->setNumIndices(m_numParticles);
+        m_vao->draw();
+    m_vao->unbind();
 
     // m_vao->bind();
     //     m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_indices.size()*sizeof(ngl::Vec3),m_indices[0].m_x));
