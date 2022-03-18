@@ -40,15 +40,13 @@ class MPM
         std::vector<ngl::Vec3> m_gridVelocity;
         std::vector<ngl::Vec3> m_deformationGradientE;
         std::vector<ngl::Vec3> m_deformationGradientP;
-        //----------------------------------------------------------------------------------------------------------------------
-        /// @brief vector for boundary field. -1 for solid.
-        //----------------------------------------------------------------------------------------------------------------------
-        std::vector<int> m_boundary;
+
         //----------------------------------------------------------------------------------------------------------------------
         /// @brief vector to store the position of solid cells to visualise solid cells.
         //----------------------------------------------------------------------------------------------------------------------
         std::vector<ngl::Vec3> m_solid;
         std::vector<ngl::Vec3> m_normal;
+        std::vector<ngl::Vec3> m_indices;
 
 
         // Simulation settings

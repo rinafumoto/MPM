@@ -39,15 +39,14 @@ void MPM::initialise()
 
     // std::cout << std::setprecision(2) << std::fixed;
     m_first = true;
-    m_gridsize = 0.1f;
-    m_resolutionX = 50+2;
-    m_resolutionY = 50+2;
-    m_timestep = 0.001f;
+    m_gridsize = 0.01f;
+    m_resolutionX = 30+2;
+    m_resolutionY = 30+2;
+    m_timestep = 0.01f;
     m_force = ngl::Vec3(0.0f);
     m_gravity = -9.81f;
 
     // Initialise vectors.
-    m_boundary.resize(m_resolutionX*m_resolutionY, 0);
     m_gridMass.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
     m_gridVelocity.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
@@ -58,12 +57,17 @@ void MPM::initialise()
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    int bottom = 30;
-    int left = 30;
-    int top = 40;
-    int right = 40;
+    int bottom = 10;
+    int left = 10;
+    int top = 20;
+    int right = 20;
 
+    // Initialise particles at cell corners
     float initialMass = initialDensity*m_gridsize*m_gridsize;
+    m_numParticles = (top-bottom+1)*(right-left+1);
+    m_position.reserve(m_numParticles);
+    m_velocity.reserve(m_numParticles);
+    m_mass.reserve(m_numParticles);
 
     for(int i = left+1; i<=right+1; ++i)
     {
@@ -72,10 +76,31 @@ void MPM::initialise()
             m_position.push_back({static_cast<float>(i*m_gridsize),static_cast<float>(j*m_gridsize),0.0f});
             m_velocity.push_back(0.0f);
             m_mass.push_back(initialMass);
-            ++m_numParticles;
         }
     }
-    
+
+    // Initialise particles at random positions
+    // size_t numParticlesInCell = 4;
+    // m_numParticles = (top-bottom)*(right-left)*numParticlesInCell;
+    // m_position.reserve(m_numParticles);
+    // m_velocity.reserve(m_numParticles);
+    // m_mass.reserve(m_numParticles);
+    // float initialMass = initialDensity*m_gridsize*m_gridsize/numParticlesInCell;
+    // for(int j=bottom+1; j<top+1; ++j)
+    // {
+    //     for(int i=left+1; i<right+1; ++i)
+    //     {
+    //         for(int k=0; k<numParticlesInCell; ++k)
+    //         {
+    //             float x = (randomPositivezDist(m_generator)+i)*m_gridsize;
+    //             float y = (randomPositivezDist(m_generator)+j)*m_gridsize;
+    //             m_position.push_back({x,y,0.0f});
+    //             m_velocity.push_back(0.0f);
+    //             m_mass.push_back(initialMass);
+    //         }
+    //     }
+    // }
+
     m_elastic.resize(m_numParticles, Eigen::Matrix3f::Identity());
     m_plastic.resize(m_numParticles, Eigen::Matrix3f::Identity());
 
@@ -84,8 +109,6 @@ void MPM::initialise()
     m_solid.reserve(m_resolutionX*2 + m_resolutionX*2 - 4);
     for(int i=0; i<m_resolutionY+1; ++i)
     {
-        // m_boundary[i*m_resolutionX] = -1;
-        // m_boundary[i*m_resolutionX+m_resolutionX-1] = -1;
         m_normal[i*(m_resolutionX+1)].m_x = 1.0f;
         m_normal[i*(m_resolutionX+1)+1].m_x = 1.0f;
         m_normal[i*(m_resolutionX+1)+m_resolutionX].m_x = -1.0f;
@@ -95,8 +118,6 @@ void MPM::initialise()
     }
     for(int i=0; i<m_resolutionX+1; ++i)
     {
-        // m_boundary[i] = -1;
-        // m_boundary[m_resolutionX*m_resolutionY-1-i] = -1;
         m_normal[i].m_y = 1.0f;
         m_normal[m_resolutionX+1+i].m_y = 1.0f;
         m_normal[(m_resolutionX+1)*(m_resolutionY+1)-1-i].m_y = -1.0f;
@@ -105,18 +126,34 @@ void MPM::initialise()
         m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,(m_resolutionY-0.5f)*m_gridsize, 0.0f});        
     }
 
-    // Add the positions of the solid cells to the vector for visualisation.
-    // m_solid.reserve(m_resolutionX*2 + m_resolutionX*2 - 4/(m_gridsize*m_gridsize));
-    // for(int j=0; j<m_resolutionY; ++j)
+    m_indices.resize((m_resolutionX+1)*(m_resolutionY+1));
+    for(int i=0; i<m_resolutionX+1; ++i)
+    {
+        for(int j=0; j<m_resolutionY+1; ++j)
+        {
+            m_indices[j*(m_resolutionX+1)+i] = ngl::Vec3(static_cast<float>(i)*m_gridsize,static_cast<float>(j)*m_gridsize, 0.0f);
+        }
+    }
+    // std::cout<<"*******************************\nIndex Field X\n";
+    // for(int j=m_resolutionY; j>=0; --j)
     // {
-    //     for(int i=0; i<m_resolutionX; ++i)
+    //     for(int i=0; i<m_resolutionX+1; ++i)
     //     {
-    //         if(m_boundary[j*m_resolutionX+i] == -1)
-    //         {
-    //             m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,(static_cast<float>(j)+0.5f)*m_gridsize, 0.0f});
-    //         }
+    //         std::cout<<m_indices[j*(m_resolutionX+1)+i].m_x<<' ';
     //     }
+    //     std::cout<<'\n';
     // }
+    // std::cout<<"*******************************\nIndex Field Y\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_indices[j*(m_resolutionX+1)+i].m_y<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"indices size: "<<m_indices.size()<<'\n';
+
 }
 
 float MPM::interpolate(float _i, float _j, ngl::Vec3 _x)
@@ -419,24 +456,24 @@ void MPM::gridCollision()
     }
 
     // std::cout<<"\nAFTER\n";
-    std::cout<<"*******************************\nVelocity Field X\n";
-    for(int j=m_resolutionY; j>=0; --j)
-    {
-        for(int i=0; i<m_resolutionX+1; ++i)
-        {
-            std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' ';
-        }
-        std::cout<<'\n';
-    }
-    std::cout<<"*******************************\nVelocity Field Y\n";
-    for(int j=m_resolutionY; j>=0; --j)
-    {
-        for(int i=0; i<m_resolutionX+1; ++i)
-        {
-            std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' ';
-        }
-        std::cout<<'\n';
-    }
+    // std::cout<<"*******************************\nVelocity Field X\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
+    // std::cout<<"*******************************\nVelocity Field Y\n";
+    // for(int j=m_resolutionY; j>=0; --j)
+    // {
+    //     for(int i=0; i<m_resolutionX+1; ++i)
+    //     {
+    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' ';
+    //     }
+    //     std::cout<<'\n';
+    // }
     // std::cout<<"*******************************\nVelocity Field Z\n";
     // for(int j=m_resolutionY; j>=0; --j)
     // {
@@ -489,14 +526,14 @@ void MPM::updateDeformationGradients()
         }
         // std::cout<<"sigma: \n"<<sigma<<'\n';
 
-        std::cout<<"BEFORE: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
-        std::cout<<"m_elastic[k]:\n"<<m_elastic[k]<<'\n';
-        std::cout<<"m_plastic[k]:\n"<<m_plastic[k]<<'\n';
+        // std::cout<<"BEFORE: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        // std::cout<<"m_elastic[k]:\n"<<m_elastic[k]<<'\n';
+        // std::cout<<"m_plastic[k]:\n"<<m_plastic[k]<<'\n';
         m_plastic[k] = svd.matrixV()*sigma.inverse()*svd.matrixU().transpose()*m_elastic[k]*m_plastic[k];
         m_elastic[k] = svd.matrixU()*sigma*svd.matrixV().transpose();
-        std::cout<<"AFTER: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
-        std::cout<<"m_elastic[k]:\n"<<m_elastic[k]<<'\n';
-        std::cout<<"m_plastic[k]:\n"<<m_plastic[k]<<'\n';
+        // std::cout<<"AFTER: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        // std::cout<<"m_elastic[k]:\n"<<m_elastic[k]<<'\n';
+        // std::cout<<"m_plastic[k]:\n"<<m_plastic[k]<<'\n';
     }
 }
 
@@ -572,16 +609,6 @@ void MPM::render(size_t _w, size_t _h)
     //     std::cout<<'\n';
     // }
 
-    // std::cout<<"\n*******************************\nBoundary Field\n";
-    // for(int j=m_resolutionY-1; j>=0; --j)
-    // {
-    //     for(int i=0; i<m_resolutionX; ++i)
-    //     {
-    //         std::cout<<m_boundary[j*m_resolutionX+i]<<' ';
-    //     }
-    //     std::cout<<'\n';
-    // }
-
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
     const auto GridViz = "GridViz";
@@ -607,7 +634,7 @@ void MPM::render(size_t _w, size_t _h)
     
     ngl::ShaderLib::use(ColourShader);
     ngl::ShaderLib::setUniform("MVP",project*view);
-    glPointSize(5);
+    glPointSize(3);
 
     m_vao->bind();
         m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
@@ -622,13 +649,23 @@ void MPM::render(size_t _w, size_t _h)
     ngl::ShaderLib::setUniform("viewportSize",ngl::Vec2(_w,_h));
     ngl::ShaderLib::setUniform("MVP",project*view);
 
+    // m_vao->bind();
+    //     m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
+    //     m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+    //     m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
+    //     m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+    //     m_vao->setNumIndices(m_numParticles);
+    //     m_vao->draw();
+    // m_vao->unbind();  
+    // std::cout<<"indices: "<<m_indices.size()<<'\n';
+    // std::cout<<"gridVelocity: "<<m_gridVelocity.size()<<'\n';
+
     m_vao->bind();
-        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
+        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_indices.size()*sizeof(ngl::Vec3),m_indices[0].m_x));
         m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-        m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
+        m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_gridVelocity.size()*sizeof(ngl::Vec3),m_gridVelocity[0].m_x));
         m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
-        m_vao->setNumIndices(m_numParticles);
+        m_vao->setNumIndices(m_indices.size());
         m_vao->draw();
     m_vao->unbind();  
-
 }
