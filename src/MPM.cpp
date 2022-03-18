@@ -23,12 +23,13 @@ void MPM::initialise()
     m_hardening = 10.0f;
     m_compression = 0.025f;
     m_stretch = 0.0075f;
+    m_blending = 0.95f;
 
     // std::cout << std::setprecision(2) << std::fixed;
     m_first = true;
-    m_gridsize = 0.5f;
-    m_resolutionX = 20+2;
-    m_resolutionY = 20+2;
+    m_gridsize = 0.1f;
+    m_resolutionX = 50+2;
+    m_resolutionY = 50+2;
     m_timestep = 0.1f;
     m_force = ngl::Vec3(0.0f);
     m_gravity = -9.81f;
@@ -44,10 +45,13 @@ void MPM::initialise()
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    int bottom = 5;
-    int left = 5;
-    int top = 8;
-    int right = 8;
+    int bottom = 10;
+    int left = 10;
+    int top = 20;
+    int right = 20;
+
+    float initialDensity = 400.0f;
+    float initialMass = initialDensity*m_gridsize*m_gridsize;
 
     for(int i = left+1; i<=right+1; ++i)
     {
@@ -55,7 +59,7 @@ void MPM::initialise()
         {
             m_position.push_back({static_cast<float>(i*m_gridsize),static_cast<float>(j*m_gridsize),0.0f});
             m_velocity.push_back(0.0f);
-            m_mass.push_back(5.0f);
+            m_mass.push_back(initialMass);
             ++m_numParticles;
         }
     }
@@ -155,14 +159,16 @@ void MPM::simulate()
         m_first = false;
     }
     updateGridVelocity();
-    collision();
+    gridCollision();
     updateDeformationGradients();
-    // gridToParticle();
+    gridToParticle();
+    updatePosition();
 }
 
 void MPM::particleToGrid()
 {
     std::fill(m_gridMass.begin(), m_gridMass.end(), 0.0f);
+    std::fill(m_gridVelocity_old.begin(), m_gridVelocity_old.end(), 0.0f);
     std::fill(m_gridVelocity.begin(), m_gridVelocity.end(), 0.0f);
     
     std::vector<ngl::Vec3> velSum;
@@ -193,6 +199,8 @@ void MPM::particleToGrid()
         if(velSum[i].m_y != 0)
              m_gridVelocity[i].m_y = velSum[i].m_y/m_gridMass[i];
     }
+
+    m_gridVelocity_old = m_gridVelocity;
 
     // std::cout<<"*******************************\nMass Field\n";
     // for(int j=m_resolutionY; j>=0; --j)
@@ -378,7 +386,7 @@ void MPM::updateGridVelocity()
 
 }
 
-void MPM::collision()
+void MPM::gridCollision()
 {
     float vn;
     for(int i=0; i<m_normal.size(); ++i)
@@ -470,6 +478,52 @@ void MPM::updateDeformationGradients()
 
 void MPM::gridToParticle()
 {
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        // Update particle velocity
+        int x_index = static_cast<int>(m_position[k].m_x/m_gridsize)-1;
+        int y_index = static_cast<int>(m_position[k].m_y/m_gridsize)-1;
+        ngl::Vec3 pic = 0.0f;
+        ngl::Vec3 flip = 0.0f;
+        for (int i=x_index; i<x_index+4; ++i)
+        {
+            for (int j=y_index; j<y_index+4; ++j)
+            {
+                if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
+                {
+                    pic += m_gridVelocity[j*(m_resolutionX+1)+i]*interpolate(i,j,m_position[k]);
+                    flip += m_gridVelocity_old[j*(m_resolutionX+1)+i]*interpolate(i,j,m_position[k]);
+                }
+            }
+        }
+        // std::cout<<"old: "<<m_velocity[k].m_x<<' '<<m_velocity[k].m_y<<'\n';
+        m_velocity[k] = pic + m_blending*(m_velocity[k]-flip);
+        // std::cout<<"new: "<<m_velocity[k].m_x<<' '<<m_velocity[k].m_y<<'\n';
+
+        // Particle-based collision handling.
+        ngl::Vec3 normal = 0.0f;
+        for (int i=x_index; i<x_index+4; ++i)
+        {
+            for (int j=y_index; j<y_index+4; ++j)
+            {
+                if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
+                {
+                    normal += m_normal[j*(m_resolutionX+1)+i]*interpolate(i,j,m_position[k]);
+                }
+            }
+        }
+        float vn = m_velocity[k].dot(normal);
+        if(vn<0)
+        {
+            // std::cout<<"old: "<<m_velocity[k].m_x<<' '<<m_velocity[k].m_y<<'\n';
+            m_velocity[k] -= normal*vn;
+            // std::cout<<"new: "<<m_velocity[k].m_x<<' '<<m_velocity[k].m_y<<'\n';
+        }   
+    }
+}
+
+void MPM::updatePosition()
+{
 
 }
 
@@ -545,7 +599,7 @@ void MPM::render()
     
     ngl::ShaderLib::use(ColourShader);
     ngl::ShaderLib::setUniform("MVP",project*view);
-    glPointSize(10);
+    glPointSize(5);
 
     m_vao->bind();
         m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));

@@ -36,6 +36,7 @@ class MPM
 
         // Grid properties
         std::vector<float> m_gridMass;
+        std::vector<ngl::Vec3> m_gridVelocity_old;
         std::vector<ngl::Vec3> m_gridVelocity;
         std::vector<ngl::Vec3> m_deformationGradientE;
         std::vector<ngl::Vec3> m_deformationGradientP;
@@ -58,6 +59,7 @@ class MPM
         float m_gravity;
         float m_compression;
         float m_stretch;
+        float m_blending;
 
         float m_gridsize;
         //----------------------------------------------------------------------------------------------------------------------
@@ -98,9 +100,10 @@ class MPM
         void particleToGrid();
         void computeDensityAndVolume();
         void updateGridVelocity();
-        void collision();
+        void gridCollision();
         void updateDeformationGradients();
         void gridToParticle();
+        void updatePosition();
 
 };
 
