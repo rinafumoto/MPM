@@ -10,6 +10,7 @@
 
 const auto ColourShader = "ColourShader";
 const auto SolidShader = "SolidShader";
+const auto GridViz = "GridViz";
 
 NGLScene::NGLScene(QWidget *_parent) : QOpenGLWidget(_parent)
 {
@@ -64,6 +65,7 @@ void NGLScene::initializeGL()
   // Load shaders
   ngl::ShaderLib::loadShader(ColourShader, "shaders/ColourVertex.glsl", "shaders/ColourFragment.glsl");
   ngl::ShaderLib::loadShader(SolidShader,"shaders/SolidVertex.glsl","shaders/SolidFragment.glsl","shaders/SolidGeometry.glsl");
+  ngl::ShaderLib::loadShader(GridViz,"shaders/VectorVizVertex.glsl","shaders/VectorVizFragment.glsl","shaders/VectorVizGeometry.glsl");
   // initialise the simulation.
   initialise();
 }
@@ -83,7 +85,7 @@ void NGLScene::paintGL()
   // Clear the screen and depth buffer
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glViewport(0,0,m_win.width,m_win.height);
-  m_mpm->render();
+  m_mpm->render(m_win.width,m_win.height);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

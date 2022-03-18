@@ -15,11 +15,23 @@ auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
 
 void MPM::initialise()
 {
-
+    //Disney
     float youngs = 1.4*pow(10.0f, 5.0f);
     float poisson = 0.2f;
     m_lambda = (youngs*poisson)/((1.0f+poisson)*(1.0f-2.0f*poisson));
     m_mu = youngs/(2.0f*(1.0f+poisson));
+    float initialDensity = 400.0f;
+
+    //SFLIP Fig.11
+    // float bulk = 1.83f * pow(10.0f,6.0f);
+    // float poisson = 0.3f;
+    // float initialDensity = 2.0f;
+    // m_lambda = 3.0f*bulk*poisson/(1.0f+poisson);
+    // m_mu = (3.0f*bulk*(1.0f-2.0f*poisson))/(2.0f*(1.0f+poisson));
+
+
+
+
     m_hardening = 10.0f;
     m_compression = 0.025f;
     m_stretch = 0.0075f;
@@ -43,14 +55,14 @@ void MPM::initialise()
     m_vao = ngl::vaoFactoryCast<ngl::MultiBufferVAO>(ngl::VAOFactory::createVAO(ngl::multiBufferVAO,GL_POINTS));
     m_vao->bind();
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
+        m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    int bottom = 10;
-    int left = 10;
-    int top = 20;
-    int right = 20;
+    int bottom = 30;
+    int left = 30;
+    int top = 40;
+    int right = 40;
 
-    float initialDensity = 400.0f;
     float initialMass = initialDensity*m_gridsize*m_gridsize;
 
     for(int i = left+1; i<=right+1; ++i)
@@ -127,8 +139,8 @@ float MPM::bSpline(float _x)
 
 ngl::Vec3 MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
 {
-    return {dBSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
-            bSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
+    return {dBSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize),///m_gridsize,
+            bSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize),///m_gridsize,
             0.0f};
 }
 
@@ -260,12 +272,12 @@ void MPM::updateGridVelocity()
     for(int k=0; k<m_numParticles; ++k)
     {
         Eigen::JacobiSVD<Eigen::Matrix3f> svd(m_elastic[k], Eigen::ComputeFullU | Eigen::ComputeFullV);
-        auto mu = m_mu*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
-        auto lambda = m_lambda*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
-        auto R = svd.matrixU()*svd.matrixV().transpose();
-        auto dLeft = 2.0f*mu*(m_elastic[k]-R)*m_elastic[k].transpose();
-        auto dRight = (lambda*(m_elastic[k].determinant()-1.0f)*m_elastic[k].determinant())*Eigen::Matrix3f::Identity();
-        auto temp = -m_volume[k]*(dLeft+dRight);
+        float mu = m_mu*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
+        float lambda = m_lambda*exp(m_hardening*(1.0f-m_plastic[k].determinant()));
+        Eigen::Matrix3f R = svd.matrixU()*svd.matrixV().transpose();
+        Eigen::Matrix3f dLeft = 2.0f*mu*(m_elastic[k]-R);
+        Eigen::Matrix3f dRight = lambda*(m_elastic[k].determinant()-1.0f)*m_elastic[k].determinant()*m_elastic[k].transpose().inverse();
+        Eigen::Matrix3f dGD = dLeft+dRight;
 
         // std::cout<<"mu: "<<mu<<'\n';
         // std::cout<<"lambda: "<<lambda<<'\n';
@@ -276,15 +288,23 @@ void MPM::updateGridVelocity()
 
         int x_index = static_cast<int>(m_position[k].m_x/m_gridsize)-1;
         int y_index = static_cast<int>(m_position[k].m_y/m_gridsize)-1;
+        // std::cout<<"position: "<<m_position[k].m_x<<' '<<m_position[k].m_y<<'\n';
         for (int i=x_index; i<x_index+4; ++i)
         {
             for (int j=y_index; j<y_index+4; ++j)
             {
                 if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
                 {
-                    forces[j*(m_resolutionX+1)+i] += {(temp*eigenVec3(dInterpolate(i,j,m_position[k])))[0],
-                                                    (temp*eigenVec3(dInterpolate(i,j,m_position[k])))[1],
-                                                    (temp*eigenVec3(dInterpolate(i,j,m_position[k])))[2]};
+                    // std::cout<<"index: "<<i<<' '<<j<<'\n';
+                    Eigen::Vector3f f = -m_volume[k]*dGD*m_elastic[k].transpose()*eigenVec3(dInterpolate(i,j,m_position[k]));
+                    forces[j*(m_resolutionX+1)+i] += {f[0], f[1], f[2]};
+                    // forces[j*(m_resolutionX+1)+i] += {(eigenVec3(dInterpolate(i,j,m_position[k])))[0],
+                    //                                 (eigenVec3(dInterpolate(i,j,m_position[k])))[1],
+                    //                                 (eigenVec3(dInterpolate(i,j,m_position[k])))[2]};
+                    // forces[j*(m_resolutionX+1)+i] += {(temp*Eigen::Vector3f(1.0f, 1.0f, 1.0f))[0],
+                    //                                 (temp*Eigen::Vector3f(1.0f, 1.0f, 1.0f))[1],
+                    //                                 (temp*Eigen::Vector3f(1.0f, 1.0f, 1.0f))[2]};
+                    // std::cout<<"force: \n"<<eigenVec3(dInterpolate(i,j,m_position[k]))<<'\n';
                 }
             }
         }
@@ -322,6 +342,7 @@ void MPM::updateGridVelocity()
     for(int i=0; i<forces.size(); ++i)
     {
         forces[i] += m_force + ngl::Vec3(0.0f, m_gravity*m_gridMass[i], 0.0f);
+        // forces[i] = ngl::Vec3(0.0f, -1.0f, 0.0f);
         if(m_gridMass[i] != 0.0f)
             m_gridVelocity[i] += m_timestep / m_gridMass[i] * forces[i];
     }
@@ -398,24 +419,24 @@ void MPM::gridCollision()
     }
 
     // std::cout<<"\nAFTER\n";
-    // std::cout<<"*******************************\nVelocity Field X\n";
-    // for(int j=m_resolutionY; j>=0; --j)
-    // {
-    //     for(int i=0; i<m_resolutionX+1; ++i)
-    //     {
-    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' ';
-    //     }
-    //     std::cout<<'\n';
-    // }
-    // std::cout<<"*******************************\nVelocity Field Y\n";
-    // for(int j=m_resolutionY; j>=0; --j)
-    // {
-    //     for(int i=0; i<m_resolutionX+1; ++i)
-    //     {
-    //         std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' ';
-    //     }
-    //     std::cout<<'\n';
-    // }
+    std::cout<<"*******************************\nVelocity Field X\n";
+    for(int j=m_resolutionY; j>=0; --j)
+    {
+        for(int i=0; i<m_resolutionX+1; ++i)
+        {
+            std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_x<<' ';
+        }
+        std::cout<<'\n';
+    }
+    std::cout<<"*******************************\nVelocity Field Y\n";
+    for(int j=m_resolutionY; j>=0; --j)
+    {
+        for(int i=0; i<m_resolutionX+1; ++i)
+        {
+            std::cout<<m_gridVelocity[j*(m_resolutionX+1)+i].m_y<<' ';
+        }
+        std::cout<<'\n';
+    }
     // std::cout<<"*******************************\nVelocity Field Z\n";
     // for(int j=m_resolutionY; j>=0; --j)
     // {
@@ -464,14 +485,18 @@ void MPM::updateDeformationGradients()
         Eigen::Matrix3f sigma = Eigen::Matrix3f::Zero();
         for(int i=0; i<3; ++i)
         {
-            sigma(i,i) = std::clamp(svd.singularValues()(i),1.0f-m_compression,1.0f-m_stretch);
+            sigma(i,i) = std::clamp(svd.singularValues()(i),1.0f-m_compression,1.0f+m_stretch);
         }
         // std::cout<<"sigma: \n"<<sigma<<'\n';
 
-        // std::cout<<"BEFORE: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        std::cout<<"BEFORE: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        std::cout<<"m_elastic[k]:\n"<<m_elastic[k]<<'\n';
+        std::cout<<"m_plastic[k]:\n"<<m_plastic[k]<<'\n';
         m_plastic[k] = svd.matrixV()*sigma.inverse()*svd.matrixU().transpose()*m_elastic[k]*m_plastic[k];
         m_elastic[k] = svd.matrixU()*sigma*svd.matrixV().transpose();
-        // std::cout<<"AFTER: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        std::cout<<"AFTER: \n"<<m_elastic[k]*m_plastic[k]<<'\n';
+        std::cout<<"m_elastic[k]:\n"<<m_elastic[k]<<'\n';
+        std::cout<<"m_plastic[k]:\n"<<m_plastic[k]<<'\n';
     }
 }
 
@@ -526,7 +551,7 @@ void MPM::gridToParticle()
 
 ////////// Render //////////
 
-void MPM::render()
+void MPM::render(size_t _w, size_t _h)
 {
     // std::cout<<"*******************************\nNormal Field X\n";
     // for(int j=m_resolutionY; j>=0; --j)
@@ -559,6 +584,7 @@ void MPM::render()
 
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
+    const auto GridViz = "GridViz";
 
     float width = static_cast<float>(m_resolutionX*m_gridsize);
     float height = static_cast<float>(m_resolutionY*m_gridsize);
@@ -589,5 +615,20 @@ void MPM::render()
         m_vao->setNumIndices(m_numParticles);
         m_vao->draw();
     m_vao->unbind();
-    
+
+    ngl::ShaderLib::use(GridViz);
+    ngl::ShaderLib::setUniform("thickness",2.0f);
+    ngl::ShaderLib::setUniform("thickness2",1.0f);
+    ngl::ShaderLib::setUniform("viewportSize",ngl::Vec2(_w,_h));
+    ngl::ShaderLib::setUniform("MVP",project*view);
+
+    m_vao->bind();
+        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
+        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+        m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
+        m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+        m_vao->setNumIndices(m_numParticles);
+        m_vao->draw();
+    m_vao->unbind();  
+
 }

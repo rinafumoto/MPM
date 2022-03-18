@@ -22,7 +22,7 @@ class MPM
 
         void initialise();
         void simulate();
-        void render();
+        void render(size_t _w, size_t _h);
 
     private:
         // Particle properties
