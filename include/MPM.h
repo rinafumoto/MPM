@@ -103,7 +103,6 @@ class MPM
         void gridCollision();
         void updateDeformationGradients();
         void gridToParticle();
-        void updatePosition();
 
 };
 

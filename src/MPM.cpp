@@ -30,7 +30,7 @@ void MPM::initialise()
     m_gridsize = 0.1f;
     m_resolutionX = 50+2;
     m_resolutionY = 50+2;
-    m_timestep = 0.1f;
+    m_timestep = 0.001f;
     m_force = ngl::Vec3(0.0f);
     m_gravity = -9.81f;
 
@@ -162,7 +162,6 @@ void MPM::simulate()
     gridCollision();
     updateDeformationGradients();
     gridToParticle();
-    updatePosition();
 }
 
 void MPM::particleToGrid()
@@ -518,15 +517,12 @@ void MPM::gridToParticle()
             // std::cout<<"old: "<<m_velocity[k].m_x<<' '<<m_velocity[k].m_y<<'\n';
             m_velocity[k] -= normal*vn;
             // std::cout<<"new: "<<m_velocity[k].m_x<<' '<<m_velocity[k].m_y<<'\n';
-        }   
+        }
+
+        // Update Particle position
+        m_position[k] += m_timestep*m_velocity[k];
     }
 }
-
-void MPM::updatePosition()
-{
-
-}
-
 
 ////////// Render //////////
 
@@ -560,20 +556,6 @@ void MPM::render()
     //     }
     //     std::cout<<'\n';
     // }
-
-    // Eigen::MatrixXf m = Eigen::MatrixXf::Random(3,3);
-    // Eigen::JacobiSVD<Eigen::MatrixXf> svd(m, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    // std::cout << "Here is the matrix m:" << '\n' << m << '\n';
-    // // std::cout << "Its singular values are:" <<'\n'<< svd.singularValues() <<'\n';
-    // // std::cout << "Its left singular vectors are the columns of the Full U matrix:" <<'\n'<< svd.matrixU() <<'\n';
-    // // std::cout << "Its right singular vectors are the columns of the Full V matrix:" <<'\n'<< svd.matrixV() <<'\n';
-    // Eigen::MatrixXf m_singularMatt = Eigen::Matrix3f::Zero();
-    // for(int i=0; i<3; ++i)
-    // {
-    //     m_singularMatt(i,i)=svd.singularValues()(i);
-    // }
-    // // std::cout << "Its singular values matrix:" <<'\n'<< m_singularMatt <<'\n';
-    // std::cout << "Reconstructed matrix is:" << '\n' << svd.matrixU()*m_singularMatt*svd.matrixV().transpose() << '\n';
 
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
