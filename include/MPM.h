@@ -33,6 +33,7 @@ class MPM
         std::vector<float> m_density;
         std::vector<Eigen::Matrix3f> m_elastic;
         std::vector<Eigen::Matrix3f> m_plastic;
+        std::vector<Eigen::Matrix3f> m_total;
 
         // Grid properties
         std::vector<float> m_gridMass;
@@ -47,6 +48,7 @@ class MPM
         std::vector<ngl::Vec3> m_solid;
         std::vector<ngl::Vec3> m_normal;
         std::vector<ngl::Vec3> m_indices;
+        std::vector<ngl::Vec3> m_vis;
 
 
         // Simulation settings
