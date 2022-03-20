@@ -22,33 +22,17 @@ void MPM::initialise()
     m_mu = youngs/(2.0f*(1.0f+poisson));
     float initialDensity = 400.0f;
 
-    //SFLIP Fig.11
-    // float bulk = 1.83f * pow(10.0f,6.0f);
-    // float poisson = 0.3f;
-    // float initialDensity = 2.0f;
-    // m_lambda = 3.0f*bulk*poisson/(1.0f+poisson);
-    // m_mu = (3.0f*bulk*(1.0f-2.0f*poisson))/(2.0f*(1.0f+poisson));
-
-    // // Cookie
-    // float youngs = 20.0f;
-    // float poisson = 0.4f/0.35f;
-    // m_lambda = (youngs*poisson)/((1.0f+poisson)*(1.0f-2.0f*poisson));
-    // m_mu = youngs/(2.0f*(1.0f+poisson));
-    // float initialDensity = 2.0f;
-
-
     m_hardening = 10.0f;
     m_compression = 0.025f;
     m_stretch = 0.0075f;
     m_blending = 0.95f;
 
-
     // std::cout << std::setprecision(2) << std::fixed;
     m_first = true;
     m_gridsize = 0.00001f;
-    m_resolutionX = 100+2;
-    m_resolutionY = 100+2;
-    m_timestep = 0.00001f;
+    m_resolutionX = 20+2;
+    m_resolutionY = 20+2;
+    m_timestep = 0.000001f;
     m_force = ngl::Vec3(0.0f);
     m_gravity = -9.81f;
 
@@ -65,9 +49,9 @@ void MPM::initialise()
     m_vao->unbind();
 
     int bottom = 5;
-    int left = 45;
-    int top = 45;
-    int right = 55;
+    int left = 5;
+    int top = 15;
+    int right = 15;
 
     // Initialise particles at cell corners
     float initialMass = initialDensity*m_gridsize*m_gridsize;
@@ -82,6 +66,7 @@ void MPM::initialise()
         {
             m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
             // m_position.push_back({static_cast<float>(i)*m_gridsize,static_cast<float>(j)*m_gridsize,0.0f});
+            // m_velocity.push_back({20.0f*initialMass/m_timestep,0.0f,0.0f});
             m_velocity.push_back(0.0f);
             m_mass.push_back(initialMass);
         }
@@ -171,18 +156,19 @@ void MPM::initialise()
 
 float MPM::interpolate(float _i, float _j, ngl::Vec3 _x)
 {
-    return bSpline(std::abs(_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline(std::abs(_x.m_y-_j*m_gridsize)/m_gridsize);
+    return bSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize);
 }
 
 float MPM::bSpline(float _x)
 {
-    if(_x >= 0.0f && _x < 1.0f)
+    float absX = std::abs(_x);
+    if(absX >= 0.0f && absX < 1.0f)
     {
-        return pow(_x,3.0f)/2.0f-pow(_x,2.0f)+2.0f/3.0f;
+        return pow(absX,3.0f)/2.0f-pow(_x,2.0f)+2.0f/3.0f;
     }
-    if(_x >= 1.0f && _x < 2.0f)
+    if(absX >= 1.0f && absX < 2.0f)
     {
-        return -pow(_x,3.0f)/6.0f+pow(_x,2.0f)-2.0f*_x+4.0f/3.0f;
+        return -pow(absX,3.0f)/6.0f+pow(_x,2.0f)-2.0f*absX+4.0f/3.0f;
     }
     return 0.0f;
 }
@@ -192,11 +178,11 @@ ngl::Vec3 MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
     // std::cout<<"i: "<<_i<<" j: "<<_j<<"pos: "<<_x.m_x<<' '<<_x.m_y<<'\n';
     // std::cout<<"X:\n";
     // std::cout<<"dBSpline "<<(_x.m_x-_i*m_gridsize)/m_gridsize<<'='<<dBSpline((_x.m_x-_i*m_gridsize)/m_gridsize)<<'\n';
-    // std::cout<<"bSpline "<<(_x.m_y-_i*m_gridsize)/m_gridsize<<'='<<bSpline((_x.m_y-_i*m_gridsize)/m_gridsize)<<'\n';
+    // std::cout<<"bSpline "<<(_x.m_y-_j*m_gridsize)/m_gridsize<<'='<<bSpline((_x.m_y-_j*m_gridsize)/m_gridsize)<<'\n';
     // std::cout<<"result: "<<dBSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize)<<'\n';
     // std::cout<<"Y:\n";
     // std::cout<<"bSpline "<<(_x.m_x-_i*m_gridsize)/m_gridsize<<'='<<bSpline((_x.m_x-_i*m_gridsize)/m_gridsize)<<'\n';
-    // std::cout<<"dBSpline "<<(_x.m_y-_i*m_gridsize)/m_gridsize<<'='<<dBSpline((_x.m_y-_i*m_gridsize)/m_gridsize)<<'\n';
+    // std::cout<<"dBSpline "<<(_x.m_y-_j*m_gridsize)/m_gridsize<<'='<<dBSpline((_x.m_y-_j*m_gridsize)/m_gridsize)<<'\n';
     // std::cout<<"result: "<<bSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline((_x.m_y-_j*m_gridsize)/m_gridsize)<<'\n';
 
     return {dBSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize),///m_gridsize,
@@ -679,16 +665,16 @@ void MPM::render(size_t _w, size_t _h)
     ngl::ShaderLib::setUniform("MVP",project*view);
     ngl::ShaderLib::setUniform("size",ngl::Vec2(m_resolutionX,m_resolutionY));
 
-    m_vao->bind();
-        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_solid.size()*sizeof(ngl::Vec3),m_solid[0].m_x));
-        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-        m_vao->setNumIndices(m_solid.size());
-        m_vao->draw();
-    m_vao->unbind();   
+    // m_vao->bind();
+    //     m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_solid.size()*sizeof(ngl::Vec3),m_solid[0].m_x));
+    //     m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+    //     m_vao->setNumIndices(m_solid.size());
+    //     m_vao->draw();
+    // m_vao->unbind();   
     
     ngl::ShaderLib::use(ColourShader);
     ngl::ShaderLib::setUniform("MVP",project*view);
-    glPointSize(3);
+    glPointSize(5);
 
     m_vao->bind();
         m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));

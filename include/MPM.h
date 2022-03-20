@@ -39,8 +39,6 @@ class MPM
         std::vector<float> m_gridMass;
         std::vector<ngl::Vec3> m_gridVelocity_old;
         std::vector<ngl::Vec3> m_gridVelocity;
-        std::vector<ngl::Vec3> m_deformationGradientE;
-        std::vector<ngl::Vec3> m_deformationGradientP;
 
         //----------------------------------------------------------------------------------------------------------------------
         /// @brief vector to store the position of solid cells to visualise solid cells.
