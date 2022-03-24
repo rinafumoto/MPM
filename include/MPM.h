@@ -43,9 +43,8 @@ class MPM
         /// @brief vector to store the position of solid cells to visualise solid cells.
         //----------------------------------------------------------------------------------------------------------------------
         std::vector<ngl::Vec3> m_solid;
-        std::vector<ngl::Vec3> m_normal;
         std::vector<ngl::Vec3> m_indices;
-
+        
         // Simulation settings
         bool m_first;
         float m_lambda;
