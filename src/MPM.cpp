@@ -13,144 +13,150 @@ auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
 
 ////////// Initialisation //////////
 
-void MPM::initialise()
+void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel, float _hardening, float _density, float _youngs, float _poisson, float _compression, float _stretch, float _blending, float _gridsize, float _timestep, ngl::Vec3 _force, int _resolutionX, int _resolutionY)
 {
-    //Disney
-    float youngs = 1.4*pow(10.0f, 5.0f);
-    float poisson = 0.2f;
-    m_lambda = (youngs*poisson)/((1.0f+poisson)*(1.0f-2.0f*poisson));
-    m_mu = youngs/(2.0f*(1.0f+poisson));
-    float initialDensity = 400.0f;
-
-    m_hardening = 10.0f;
-    m_compression = 0.025f;
-    m_stretch = 0.0075f;
-    m_blending = 0.95f;
-
-    m_first = true;
-    m_gridsize = 0.001f;
-    m_resolutionX = 20+2;
-    m_resolutionY = 20+2;
-    m_timestep = 0.000005f;
-    m_force = ngl::Vec3(0.0f);
+    m_lambda = (_youngs*_poisson)/((1.0f+_poisson)*(1.0f-2.0f*_poisson));
+    m_mu = _youngs/(2.0f*(1.0f+_poisson));
+    m_hardening = _hardening;
+    m_compression = _compression;
+    m_stretch = _stretch;
+    m_blending = _blending;
+    m_gridsize = _gridsize;
+    m_resolutionX = _resolutionX+2;
+    m_resolutionY = _resolutionY+2;
+    m_timestep = _timestep;
+    m_force = _force;
     m_gravity = -9.81f;
+    m_first = true;
 
     // Initialise vectors.
     m_gridMass.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
     m_gridVelocity.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
-    // // Initialise VAO.
+    // Initialise VAO.
     m_vao = ngl::vaoFactoryCast<ngl::MultiBufferVAO>(ngl::VAOFactory::createVAO(ngl::multiBufferVAO,GL_POINTS));
     m_vao->bind();
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
-    int bottom = 5;
-    int left = 5;
-    int top = 15;
-    int right = 15;
+    int left = static_cast<int>(_pos.m_x-_size.m_x/2.0f);
+    int right = static_cast<int>(_pos.m_x+_size.m_x/2.0f);
+    int bottom = static_cast<int>(_pos.m_y-_size.m_y/2.0f);
+    int top = static_cast<int>(_pos.m_y+_size.m_y/2.0f);
+    float initialMass;
 
-    // Initialise particles at cell corners
-    float initialMass = initialDensity*m_gridsize*m_gridsize;
-    m_numParticles = (top-bottom+1)*(right-left+1);//*4;
-    m_position.reserve(m_numParticles);
-    m_velocity.reserve(m_numParticles);
-    m_mass.reserve(m_numParticles);
-
-    for(int j=bottom+1; j<top+1; ++j)
+    if(_shape == 0)
     {
-        for(int i=left+1; i<right+1; ++i)
+        // Initialise particles at cell corners
+        initialMass = _density*m_gridsize*m_gridsize;
+        m_numParticles = (top-bottom+1)*(right-left+1);//*4;
+        m_position.reserve(m_numParticles);
+        m_velocity.reserve(m_numParticles);
+        m_mass.reserve(m_numParticles);
+
+        for(int j=bottom+1; j<top+1; ++j)
         {
-            m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
-            m_velocity.push_back(0.0f);
-            // m_velocity.push_back({20.0f*initialMass/m_timestep,0.0f,0.0f});
-            m_mass.push_back(initialMass);
+            for(int i=left+1; i<right+1; ++i)
+            {
+                m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
+                m_velocity.push_back(_vel);
+                // m_velocity.push_back({20.0f*initialMass/m_timestep,0.0f,0.0f});
+                m_mass.push_back(initialMass);
 
-            // m_position.push_back({i*m_gridsize,j*m_gridsize,0.0f});
-            // m_velocity.push_back(0.0f);
-            // m_mass.push_back(initialMass/4.0f);
-            // m_position.push_back({(i+0.5f)*m_gridsize,(j)*m_gridsize,0.0f});
-            // m_velocity.push_back(0.0f);
-            // m_mass.push_back(initialMass/4.0f);
-            // m_position.push_back({(i)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
-            // m_velocity.push_back(0.0f);
-            // m_mass.push_back(initialMass/4.0f);
-            // m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
-            // m_velocity.push_back(0.0f);
-            // m_mass.push_back(initialMass/4.0f);
-        }
+                // m_position.push_back({i*m_gridsize,j*m_gridsize,0.0f});
+                // m_velocity.push_back(_vel);
+                // m_mass.push_back(initialMass/4.0f);
+                // m_position.push_back({(i+0.5f)*m_gridsize,(j)*m_gridsize,0.0f});
+                // m_velocity.push_back(_vel);
+                // m_mass.push_back(initialMass/4.0f);
+                // m_position.push_back({(i)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
+                // m_velocity.push_back(_vel);
+                // m_mass.push_back(initialMass/4.0f);
+                // m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
+                // m_velocity.push_back(_vel);
+                // m_mass.push_back(initialMass/4.0f);
+            }
+        }        
     }
+    else if (_shape == 1)
+    {
+        // Initialise particles at random positions
+        size_t numParticlesInCell = 4;
+        m_numParticles = (top-bottom)*(right-left)*numParticlesInCell;
+        m_position.reserve(m_numParticles);
+        m_velocity.reserve(m_numParticles);
+        m_mass.reserve(m_numParticles);
+        initialMass = _density*m_gridsize*m_gridsize/numParticlesInCell;
+        for(int j=bottom+1; j<top+1; ++j)
+        {
+            for(int i=left+1; i<right+1; ++i)
+            {
+                for(int k=0; k<numParticlesInCell; ++k)
+                {
+                    float x = (randomPositivezDist(m_generator)+i)*m_gridsize;
+                    float y = (randomPositivezDist(m_generator)+j)*m_gridsize;
+                    m_position.push_back({x,y,0.0f});
+                    m_velocity.push_back(_vel);
+                    m_mass.push_back(initialMass);
+                }
+            }
+        }        
+    }
+    else
+    {
+        // Initialise particles from CSV file.
+        std::string filepath;
+        if(_shape == 2){
+            filepath = "../data/circle_03.csv";
+        }
+        else {
+            filepath = "../data/circle_01.csv";
+        }
 
-    // // Initialise particles at random positions
-    // size_t numParticlesInCell = 4;
-    // m_numParticles = (top-bottom)*(right-left)*numParticlesInCell;
-    // m_position.reserve(m_numParticles);
-    // m_velocity.reserve(m_numParticles);
-    // m_mass.reserve(m_numParticles);
-    // float initialMass = initialDensity*m_gridsize*m_gridsize/numParticlesInCell;
-    // for(int j=bottom+1; j<top+1; ++j)
-    // {
-    //     for(int i=left+1; i<right+1; ++i)
-    //     {
-    //         for(int k=0; k<numParticlesInCell; ++k)
-    //         {
-    //             float x = (randomPositivezDist(m_generator)+i)*m_gridsize;
-    //             float y = (randomPositivezDist(m_generator)+j)*m_gridsize;
-    //             m_position.push_back({x,y,0.0f});
-    //             m_velocity.push_back(0.0f);
-    //             m_mass.push_back(initialMass);
-    //         }
-    //     }
-    // }
+        m_numParticles = 0;
 
-    // // Initialise particles from CSV file.
-    // m_numParticles = 0;
+        std::ifstream file(filepath);
+        std::string line, l;
+        if(file.is_open())
+        {
+            getline(file, line);
+            while (getline(file, line)) {        
+                ++m_numParticles;
+            }
+            file.close();
+        }
+        else{
+            std::cout<<"Unable to open the file\n";
+        }
 
-    // std::ifstream file("../data/circle_03.csv");
-    // std::string line, l;
-    // if(file.is_open())
-    // {
-    //     getline(file, line);
-    //     while (getline(file, line)) {        
-    //         ++m_numParticles;
-    //     }
-    //     file.close();
-    // }
-    // else{
-    //     std::cout<<"Unable to open the file\n";
-    // }
-
-    // float scale = m_gridsize / 0.3f / 2.0f;
-    // float initialMass = initialDensity*m_gridsize*m_gridsize;
-    // float centerX = 10.0f;
-    // float centerY = 10.0f;
-    // m_position.reserve(m_numParticles);
-    // m_velocity.reserve(m_numParticles);
-    // m_mass.reserve(m_numParticles);    
-    // file.open("../data/circle_03.csv");
-    // if(file.is_open())
-    // {
-    //     getline(file, line);
-    //     while (getline(file, line)) {
-    //         l = line.substr(2,line.length()-4);
-    //         std::vector<std::string> tokens;
-    //         for (auto i = strtok(&l[0], " "); i != nullptr; i = strtok(nullptr, " "))
-    //         {
-    //             tokens.push_back(i);
-    //         }
-    //         float x = std::stof(tokens[0])*scale+m_gridsize+centerX*m_gridsize;
-    //         float y = std::stof(tokens[1])*scale+m_gridsize+centerY*m_gridsize;
-    //         float z = std::stof(tokens[2]);
-    //         m_position.push_back({x,y,z});
-    //         m_velocity.push_back(0.0f);
-    //         m_mass.push_back(initialMass);
-    //     }
-    //     file.close();
-    // }
-    // else{
-    //     std::cout<<"Unable to open the file\n";
-    // }
+        initialMass = _density*_size.m_x*m_gridsize*_size.m_y*m_gridsize*2*asin(1.0)/m_numParticles;
+        m_position.reserve(m_numParticles);
+        m_velocity.reserve(m_numParticles);
+        m_mass.reserve(m_numParticles);    
+        file.open(filepath);
+        if(file.is_open())
+        {
+            getline(file, line);
+            while (getline(file, line)) {
+                l = line.substr(2,line.length()-4);
+                std::vector<std::string> tokens;
+                for (auto i = strtok(&l[0], " "); i != nullptr; i = strtok(nullptr, " "))
+                {
+                    tokens.push_back(i);
+                }
+                float x = (std::stof(tokens[0])*_size.m_x/5.0f+1+_pos.m_x)*m_gridsize;
+                float y = (std::stof(tokens[1])*_size.m_y/5.0f+1+_pos.m_y)*m_gridsize;
+                m_position.push_back({x,y,0.0f});
+                m_velocity.push_back(_vel);
+                m_mass.push_back(initialMass);
+            }
+            file.close();
+        }
+        else{
+            std::cout<<"Unable to open the file\n";
+        }        
+    }
 
     m_elastic.resize(m_numParticles, Eigen::Matrix3f::Identity());
     m_plastic.resize(m_numParticles, Eigen::Matrix3f::Identity());
@@ -444,7 +450,7 @@ void MPM::gridToParticle()
 
 ////////// Render //////////
 
-void MPM::render(size_t _w, size_t _h)
+void MPM::render(size_t _w, size_t _h, bool _particle, bool _grid)
 {
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
@@ -462,12 +468,12 @@ void MPM::render(size_t _w, size_t _h)
     ngl::ShaderLib::setUniform("MVP",project*view);
     ngl::ShaderLib::setUniform("size",ngl::Vec2(m_resolutionX,m_resolutionY));
 
-    m_vao->bind();
-        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_solid.size()*sizeof(ngl::Vec3),m_solid[0].m_x));
-        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-        m_vao->setNumIndices(m_solid.size());
-        m_vao->draw();
-    m_vao->unbind();   
+    // m_vao->bind();
+    //     m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_solid.size()*sizeof(ngl::Vec3),m_solid[0].m_x));
+    //     m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+    //     m_vao->setNumIndices(m_solid.size());
+    //     m_vao->draw();
+    // m_vao->unbind();   
     
     ngl::ShaderLib::use(ColourShader);
     ngl::ShaderLib::setUniform("MVP",project*view);
@@ -486,21 +492,27 @@ void MPM::render(size_t _w, size_t _h)
     ngl::ShaderLib::setUniform("viewportSize",ngl::Vec2(_w,_h));
     ngl::ShaderLib::setUniform("MVP",project*view);
 
-    m_vao->bind();
-        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
-        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-        m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
-        m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
-        m_vao->setNumIndices(m_numParticles);
-        m_vao->draw();
-    m_vao->unbind();
+    if(_particle)
+    {
+        m_vao->bind();
+            m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
+            m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+            m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
+            m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+            m_vao->setNumIndices(m_numParticles);
+            m_vao->draw();
+        m_vao->unbind();
+    }
 
-    m_vao->bind();
-        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_indices.size()*sizeof(ngl::Vec3),m_indices[0].m_x));
-        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-        m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_gridVelocity.size()*sizeof(ngl::Vec3),m_gridVelocity[0].m_x));
-        m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
-        m_vao->setNumIndices(m_indices.size());
-        m_vao->draw();
-    m_vao->unbind();  
+    if(_grid)
+    {
+        m_vao->bind();
+            m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_indices.size()*sizeof(ngl::Vec3),m_indices[0].m_x));
+            m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+            m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_gridVelocity.size()*sizeof(ngl::Vec3),m_gridVelocity[0].m_x));
+            m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+            m_vao->setNumIndices(m_indices.size());
+            m_vao->draw();
+        m_vao->unbind();          
+    }
 }

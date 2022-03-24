@@ -20,9 +20,9 @@ class MPM
         //----------------------------------------------------------------------------------------------------------------------
         MPM(const MPM &)=default;
 
-        void initialise();
+        void initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel, float _hardening, float _density, float _youngs, float _poisson, float _compression, float _stretch, float _blending, float _gridsize, float _timestep, ngl::Vec3 _force, int _resolutionX, int _resolutionY);
         void simulate();
-        void render(size_t _w, size_t _h);
+        void render(size_t _w, size_t _h, bool _particle, bool _grid);
 
     private:
         // Particle properties

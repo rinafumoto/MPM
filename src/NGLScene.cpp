@@ -19,12 +19,11 @@ NGLScene::NGLScene(QWidget *_parent) : QOpenGLWidget(_parent)
 
 ////////// Functions called on a button click //////////
 
-// initialise the simulation with the setting values from GUI and start timer.
+// initialise the simulation with the setting values from GUI.
 void NGLScene::initialise()
 {
   m_mpm = std::make_unique<MPM>();
-  m_mpm->initialise();
-  startTimer(10);
+  m_mpm->initialise(m_shape, m_pos, m_size, m_vel, m_hardening, m_density, m_youngs, m_poisson, m_compression, m_stretch, m_blending, m_gridsize, m_timestep, m_force, m_resolutionX, m_resolutionY);
   update();
 }
 
@@ -36,13 +35,133 @@ void NGLScene::step()
 
 void NGLScene::start()
 {
-  sim=true;
+  if(m_timer < 0)
+  {
+    m_timer = startTimer(10);  
+  }
 }
 
 void NGLScene::stop()
 {
-  sim=false;
+  if(m_timer >= 0)
+  {
+    killTimer(m_timer);
+    m_timer = -1;
+  }
 }
+
+////////// Functions called on a value change //////////
+
+void NGLScene::setShape(int i)
+{
+  m_shape = i;
+}
+
+void NGLScene::setPositionX(double d)
+{
+  m_pos.m_x = d;
+}
+
+void NGLScene::setPositionY(double d)
+{
+  m_pos.m_y = d;
+}
+
+void NGLScene::setSizeX(double d)
+{
+  m_size.m_x = d;
+}
+
+void NGLScene::setSizeY(double d)
+{
+  m_size.m_y = d;
+}
+
+void NGLScene::setVelocityX(double d)
+{
+  m_vel.m_x = d;
+}
+
+void NGLScene::setVelocityY(double d)
+{
+  m_vel.m_y = d;
+}
+
+void NGLScene::setHardening(double d)
+{
+  m_hardening = d;
+}
+
+void NGLScene::setDensity(double d)
+{
+  m_density = d;
+}
+
+void NGLScene::setYoungs(double d)
+{
+  m_youngs = d;
+}
+
+void NGLScene::setPoisson(double d)
+{
+  m_poisson = d;
+}
+
+void NGLScene::setCompression(double d)
+{
+  m_compression = d;
+}
+
+void NGLScene::setStretch(double d)
+{
+  m_stretch = d;
+}
+
+void NGLScene::setBlending(double d)
+{
+  m_blending = d;
+}
+
+void NGLScene::setGridSize(double d)
+{
+  m_gridsize = d;
+}
+
+void NGLScene::setTimeStep(double d)
+{
+  m_timestep = d;
+}
+
+void NGLScene::setForceX(double d)
+{
+  m_force.m_x = d;
+}
+
+void NGLScene::setForceY(double d)
+{
+  m_force.m_y = d;
+}
+
+void NGLScene::setResolutionX(int i)
+{
+  m_resolutionX = i;
+}
+
+void NGLScene::setResolutionY(int i)
+{
+  m_resolutionY = i;
+}
+
+void NGLScene::setParticleVel(bool b)
+{
+  m_particleVel = b;
+}
+
+void NGLScene::setGridVel(bool b)
+{
+  m_gridVel = b;
+}
+
 
 NGLScene::~NGLScene()
 {
@@ -73,11 +192,8 @@ void NGLScene::initializeGL()
 void NGLScene::timerEvent ( QTimerEvent *_event)
 {
   // Simulate one step on timer event when the simulation has been started.
-  if(sim)
-  {
     m_mpm->simulate();
     update();
-  }
 }
 
 void NGLScene::paintGL()
@@ -85,7 +201,7 @@ void NGLScene::paintGL()
   // Clear the screen and depth buffer
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glViewport(0,0,m_win.width,m_win.height);
-  m_mpm->render(m_win.width,m_win.height);
+  m_mpm->render(m_win.width,m_win.height, m_particleVel, m_gridVel);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

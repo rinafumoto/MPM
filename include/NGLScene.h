@@ -67,6 +67,35 @@ public slots :
 	/// @brief a slot to stop the simulation
     //----------------------------------------------------------------------------------------------------------------------
     void stop();
+
+    //----------------------------------------------------------------------------------------------------------------------
+	/// @brief a slot to set the values from GUI
+	/// @param i the integer value to set
+	/// @param d the double value to set
+	/// @param b the boolean value to set
+    //----------------------------------------------------------------------------------------------------------------------
+    void setShape(int i);
+    void setPositionX(double d);
+    void setPositionY(double d);
+    void setSizeX(double d);
+    void setSizeY(double d);
+    void setVelocityX(double d);
+    void setVelocityY(double d);
+    void setHardening(double d);
+    void setDensity(double d);
+    void setYoungs(double d);
+    void setPoisson(double d);
+    void setCompression(double d);
+    void setStretch(double d);
+    void setBlending(double d);
+    void setGridSize(double d);
+    void setTimeStep(double d);
+    void setForceX(double d);
+    void setForceY(double d);
+    void setResolutionX(int i);
+    void setResolutionY(int i);
+    void setParticleVel(bool b);
+    void setGridVel(bool b);
     
 private:
 
@@ -116,9 +145,32 @@ private:
     std::unique_ptr<MPM> m_mpm;
 
     //----------------------------------------------------------------------------------------------------------------------
-    /// @brief The flag used to start and stop the simulation
+    /// @brief A variable to store timer id.
     //----------------------------------------------------------------------------------------------------------------------
-    bool sim = false;
+    int m_timer = -1;
+
+    //----------------------------------------------------------------------------------------------------------------------
+    /// @brief variables to store the simulation settings from GUI
+    //----------------------------------------------------------------------------------------------------------------------
+    int m_shape = 0;
+    ngl::Vec3 m_pos = {10.0f, 10.0f, 0.0f};
+    ngl::Vec3 m_size = {10.0f, 10.0f, 0.0f};
+    ngl::Vec3 m_vel = 0.0f;
+    double m_hardening = 10.0f;
+    double m_density = 400.0f;
+    double m_youngs = 140000.0f;
+    double m_poisson = 0.2f;
+    double m_compression = 0.025f;
+    double m_stretch = 0.0075f;
+    double m_blending = 0.95f;
+    double m_gridsize = 0.001f;
+    double m_timestep = 0.000005f;
+    ngl::Vec3 m_force = 0.0f;
+    int m_resolutionX = 20;
+    int m_resolutionY = 20;
+    bool m_particleVel = 0;
+    bool m_gridVel = 0;
+
 };
 
 
