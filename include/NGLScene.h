@@ -96,6 +96,13 @@ public slots :
     void setResolutionY(int i);
     void setParticleVel(bool b);
     void setGridVel(bool b);
+
+    void setFilename(QString s);
+    void setFrame(int i);
+    void save();
+    void setTextfile(QString s);
+    void lookup();
+    void play();
     
 private:
 
@@ -148,6 +155,9 @@ private:
     /// @brief A variable to store timer id.
     //----------------------------------------------------------------------------------------------------------------------
     int m_timer = -1;
+    int m_playtimer = -1;
+    int m_totalFrame = -1;
+    int m_currentFrame = 0;
 
     //----------------------------------------------------------------------------------------------------------------------
     /// @brief variables to store the simulation settings from GUI
@@ -170,6 +180,10 @@ private:
     int m_resolutionY = 20;
     bool m_particleVel = 0;
     bool m_gridVel = 0;
+
+    std::string m_filename;
+    int m_frame = 50;
+    std::string m_textfile;
 
 };
 

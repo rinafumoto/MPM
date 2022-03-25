@@ -1,12 +1,14 @@
 #include <QMouseEvent>
 #include <QGuiApplication>
+#include <QMessageBox>
+#include <QFileDialog>
 
 #include "NGLScene.h"
 #include <ngl/NGLInit.h>
 #include <ngl/ShaderLib.h>
 #include <ngl/Util.h>
 #include <iostream>
-
+#include <fstream>
 
 const auto ColourShader = "ColourShader";
 const auto SolidShader = "SolidShader";
@@ -22,6 +24,11 @@ NGLScene::NGLScene(QWidget *_parent) : QOpenGLWidget(_parent)
 // initialise the simulation with the setting values from GUI.
 void NGLScene::initialise()
 {
+  if(m_playtimer >= 0)
+  {
+    killTimer(m_playtimer);
+    m_playtimer = -1;        
+  }
   m_mpm = std::make_unique<MPM>();
   m_mpm->initialise(m_shape, m_pos, m_size, m_vel, m_hardening, m_density, m_youngs, m_poisson, m_compression, m_stretch, m_blending, m_gridsize, m_timestep, m_force, m_resolutionX, m_resolutionY);
   update();
@@ -29,15 +36,27 @@ void NGLScene::initialise()
 
 void NGLScene::step()
 {
+  if(m_playtimer >= 0)
+  {
+    killTimer(m_playtimer);
+    m_playtimer = -1;
+    initialise();
+  }  
   m_mpm->simulate();
   update();
 }
 
 void NGLScene::start()
 {
+  if(m_playtimer >= 0)
+  {
+    killTimer(m_playtimer);
+    m_playtimer = -1;
+    initialise();    
+  }
   if(m_timer < 0)
   {
-    m_timer = startTimer(10);  
+    m_timer = startTimer(1);  
   }
 }
 
@@ -162,6 +181,152 @@ void NGLScene::setGridVel(bool b)
   m_gridVel = b;
 }
 
+// Functions for save tab actions
+
+void NGLScene::setFilename(QString s)
+{
+  m_filename = s.toStdString();
+}
+
+void NGLScene::setFrame(int i)
+{
+  m_frame = i;
+}
+
+void NGLScene::save()
+{
+  if(m_filename.length() <= 0)
+  {
+    QMessageBox msgBox;
+    msgBox.setText("Please set the file name.");
+    msgBox.exec();
+  }
+  else
+  {
+    std::ifstream ifile;
+    ifile.open(fmt::format("../render/{}.txt", m_filename));
+    if(ifile) {
+      QMessageBox msgBox;
+      msgBox.setText("The file name is already used.");
+      msgBox.exec();
+    }
+    else 
+    {
+      std::ofstream file;
+      file.open(fmt::format("../render/{}.txt", m_filename));
+      std::stringstream ss;
+      ss<<"frame: "<<m_frame<<'\n';
+      ss<<"gridsize: "<<m_gridsize<<'\n';
+      ss<<"resolutionX: "<<m_resolutionX<<'\n';
+      ss<<"resolutionY: "<<m_resolutionY<<'\n';
+      ss<<"shape: "<<m_shape<<'\n';
+      ss<<"pos: "<<m_pos.m_x<<' '<<m_pos.m_y<<'\n';
+      ss<<"size: "<<m_size.m_x<<' '<<m_size.m_y<<'\n';
+      ss<<"Velocity: "<<m_vel.m_x<<' '<<m_vel.m_y<<'\n';
+      ss<<"hardening: "<<m_hardening<<'\n';
+      ss<<"density: "<<m_density<<'\n';
+      ss<<"youngs: "<<m_youngs<<'\n';
+      ss<<"poisson: "<<m_poisson<<'\n';
+      ss<<"compression: "<<m_compression<<'\n';
+      ss<<"stretch: "<<m_stretch<<'\n';
+      ss<<"blending: "<<m_blending<<'\n';
+      ss<<"timestep: "<<m_timestep<<'\n';
+      ss<<"force: "<<m_force.m_x<<' '<<m_force.m_y<<'\n';
+      file<<ss.rdbuf();
+      file.close();
+
+      m_mpm = std::make_unique<MPM>();
+      m_mpm->initialise(m_shape, m_pos, m_size, m_vel, m_hardening, m_density, m_youngs, m_poisson, m_compression, m_stretch, m_blending, m_gridsize, m_timestep, m_force, m_resolutionX, m_resolutionY);
+      m_mpm->saveFrame(0, m_filename);
+      for(int i=1; i<=m_frame; ++i)
+      {
+        for(int j=0; j<static_cast<int>(0.04f/m_timestep); ++j)
+        {
+          std::cout<<"Frame: "<<i<<" Sim: "<<j<<'\n';
+          m_mpm->simulate();
+        }
+        m_mpm->saveFrame(i, m_filename);
+      }
+      QMessageBox msgBox;
+      msgBox.setText("Completed");
+      msgBox.exec();    
+    }
+  }
+}
+
+void NGLScene::setTextfile(QString s)
+{
+  m_textfile = s.toStdString();
+}
+
+void NGLScene::lookup()
+{ 
+  // std::string filename = QFileDialog::getOpenFileName(this, tr("Select file"), "../render/", tr("Text Files (*.txt)")).toStdString();
+  // std::cout<<filename<<'\n';
+}
+
+void NGLScene::play()
+{
+  if(m_textfile.length() <= 0)
+  {
+    QMessageBox msgBox;
+    msgBox.setText("Please set the file name.");
+    msgBox.exec();
+  }
+  else
+  {
+    int numParticles = 0;
+    std::string line, token;
+
+    std::ifstream file(fmt::format("../render/{}.txt", m_textfile));
+    if(file.is_open())
+    {
+      getline(file, line);
+      m_totalFrame = std::stoi(line.substr(7, line.length()));
+      getline(file, line);
+      float gridsize = std::stof(line.substr(10, line.length()));
+      getline(file, line);
+      int resolutionX = std::stoi(line.substr(13, line.length()));
+      getline(file, line);
+      int resolutionY = std::stoi(line.substr(13, line.length()));
+      file.close();
+
+      file.open(fmt::format("../render/{}_0000.geo", m_textfile));
+
+      if(file.is_open())
+      {
+        stop();
+        m_currentFrame = 0;
+        m_particleVel = 0;
+        m_gridVel = 0;
+        getline(file, line);
+        getline(file, line);
+        std::istringstream stream(line);
+        getline(stream, token, ' ');
+        getline(stream, token, ' ');
+        int numParticles = std::stoi(token);
+
+        m_mpm = std::make_unique<MPM>();
+        m_mpm->prep(numParticles, gridsize, resolutionX, resolutionY);
+        update();
+        m_playtimer = startTimer(40);
+      }
+      else
+      {
+        QMessageBox msgBox;
+        msgBox.setText(QString::fromStdString(fmt::format("Unable to open the file: ../render/{}_0000.geo", m_textfile)));
+        msgBox.exec();
+      }    
+    }
+    else
+    {
+      QMessageBox msgBox;
+      msgBox.setText(QString::fromStdString(fmt::format("Unable to open the file: ../render/{}.txt", m_textfile)));
+      msgBox.exec();
+    }
+  }
+}
+
 
 NGLScene::~NGLScene()
 {
@@ -192,8 +357,24 @@ void NGLScene::initializeGL()
 void NGLScene::timerEvent ( QTimerEvent *_event)
 {
   // Simulate one step on timer event when the simulation has been started.
+  if(m_timer >= 0)
+  {
     m_mpm->simulate();
-    update();
+  }
+  if(m_playtimer >= 0)
+  {
+    if(m_currentFrame <= m_totalFrame)
+    {
+      m_mpm->play(m_currentFrame, m_textfile);
+      ++m_currentFrame;
+      if(m_currentFrame == m_totalFrame)
+      {
+        killTimer(m_playtimer);
+        m_playtimer = -1;        
+      }
+    }
+  }
+  update();
 }
 
 void NGLScene::paintGL()

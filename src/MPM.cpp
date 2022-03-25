@@ -50,7 +50,7 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
     {
         // Initialise particles at cell corners
         initialMass = _density*m_gridsize*m_gridsize;
-        m_numParticles = (top-bottom+1)*(right-left+1);//*4;
+        m_numParticles = (top-bottom)*(right-left);//*4;
         m_position.reserve(m_numParticles);
         m_velocity.reserve(m_numParticles);
         m_mass.reserve(m_numParticles);
@@ -126,7 +126,8 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
             }
             file.close();
         }
-        else{
+        else
+        {
             std::cout<<"Unable to open the file\n";
         }
 
@@ -468,12 +469,12 @@ void MPM::render(size_t _w, size_t _h, bool _particle, bool _grid)
     ngl::ShaderLib::setUniform("MVP",project*view);
     ngl::ShaderLib::setUniform("size",ngl::Vec2(m_resolutionX,m_resolutionY));
 
-    // m_vao->bind();
-    //     m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_solid.size()*sizeof(ngl::Vec3),m_solid[0].m_x));
-    //     m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-    //     m_vao->setNumIndices(m_solid.size());
-    //     m_vao->draw();
-    // m_vao->unbind();   
+    m_vao->bind();
+        m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_solid.size()*sizeof(ngl::Vec3),m_solid[0].m_x));
+        m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+        m_vao->setNumIndices(m_solid.size());
+        m_vao->draw();
+    m_vao->unbind();   
     
     ngl::ShaderLib::use(ColourShader);
     ngl::ShaderLib::setUniform("MVP",project*view);
@@ -514,5 +515,91 @@ void MPM::render(size_t _w, size_t _h, bool _particle, bool _grid)
             m_vao->setNumIndices(m_indices.size());
             m_vao->draw();
         m_vao->unbind();          
+    }
+}
+
+void MPM::saveFrame(int _frame, std::string _filename)
+{
+    std::ofstream file;
+    file.open(fmt::format("../render/{}_{:04d}.geo", _filename, _frame));
+    std::stringstream ss;
+    ss << "PGEOMETRY V5\n";
+    ss << "NPoints " << m_numParticles << " NPrims 1\n";
+    ss << "NPointGroups 0 NPrimGroups 0\n";
+    ss << "NPointAttrib 0  NVertexAttrib 0 NPrimAttrib 1 NAttrib 0\n";
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        ss << m_position[k].m_x << ' '<< m_position[k].m_y << ' '<< m_position[k].m_z << " 1 \n";
+    }
+    ss << "PrimitiveAttrib\n";
+    ss << "generator 1 index 1 papi\n";
+    ss << "Part " << m_numParticles << ' ';
+    for(int k=0; k<m_numParticles; ++k)
+    {
+        ss << k << ' ';
+    }
+    ss << "[0]\n";
+    ss << "beginExtra\n";
+    ss << "endExtra\n";
+    file<<ss.rdbuf();
+    file.close();
+}
+
+void MPM::prep(int _numParticles, float _gridsize, int _resolutionX, int _resolutionY)
+{
+    m_gridsize = _gridsize;
+    m_resolutionX = _resolutionX;
+    m_resolutionY = _resolutionY;
+    m_numParticles = _numParticles;
+    m_position.resize(m_numParticles, 0.0f);
+
+    m_vao = ngl::vaoFactoryCast<ngl::MultiBufferVAO>(ngl::VAOFactory::createVAO(ngl::multiBufferVAO,GL_POINTS));
+    m_vao->bind();
+        m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
+    m_vao->unbind();
+
+    // Set solid cells on the edge.
+    m_solid.reserve(m_resolutionX*2 + m_resolutionX*2 - 4);
+    for(int i=0; i<m_resolutionY; ++i)
+    {
+        m_solid.push_back({0.5f*m_gridsize,(static_cast<float>(i)+0.5f)*m_gridsize, 0.0f});
+        m_solid.push_back({(m_resolutionX-0.5f)*m_gridsize,(static_cast<float>(i)+0.5f)*m_gridsize, 0.0f});
+    }
+    for(int i=0; i<m_resolutionX; ++i)
+    {      
+        m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,0.5f*m_gridsize, 0.0f});
+        m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,(m_resolutionY-0.5f)*m_gridsize, 0.0f});        
+    }
+
+}
+
+void MPM::play(int _frame, std::string _filename)
+{
+
+    std::ifstream file(fmt::format("../render/{}_{:04d}.geo", _filename, _frame));
+    std::string line, token;
+    float x, y;
+
+    if(file.is_open())
+    {
+      getline(file, line);
+      getline(file, line);
+      getline(file, line);
+      getline(file, line);
+      for(int k=0; k<m_numParticles; ++k)
+      {
+        getline(file, line);
+        std::istringstream stream(line);
+        getline(stream, token, ' ');
+        x = static_cast<float>(std::stod(token));
+        getline(stream, token, ' ');        
+        y = static_cast<float>(std::stod(token));
+        m_position[k] = ngl::Vec3(x,y,0.0f);
+      }
+      file.close();
+    }
+    else
+    {
+      std::cout<<"Unable to open the file: "<<fmt::format("../render/{}_{:04d}.geo", _filename, _frame)<<'\n';
     }
 }

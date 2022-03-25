@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
+#include <QFileDialog>
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
@@ -8,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
   ui->setupUi(this);
   m_gl = new NGLScene(this);
   ui->m_mainWindowGridLayout->addWidget(m_gl);
+  ui->m_lookup->setIcon(QIcon("../data/lookup.png"));
 
   // connect the GUI dropdown value to a slot
   connect(ui->m_shape,SIGNAL(currentIndexChanged(int)),m_gl,SLOT(setShape(int)));
@@ -39,6 +41,14 @@ MainWindow::MainWindow(QWidget *parent)
   connect(ui->m_start,&QPushButton::clicked,m_gl,&NGLScene::start);
   connect(ui->m_stop,&QPushButton::clicked,m_gl,&NGLScene::stop);
   connect(ui->m_step,&QPushButton::clicked,m_gl,&NGLScene::step);
+  // connect the GUI save tab contents to slots
+  connect(ui->m_filename,SIGNAL(textChanged(QString)),m_gl,SLOT(setFilename(QString)));
+  connect(ui->m_frame,SIGNAL(valueChanged(int)),m_gl,SLOT(setFrame(int)));
+  connect(ui->m_save,&QPushButton::clicked,m_gl,&NGLScene::save);
+  connect(ui->m_play,&QPushButton::clicked,m_gl,&NGLScene::play);
+  connect(ui->m_textfile,SIGNAL(textChanged(QString)),m_gl,SLOT(setTextfile(QString)));
+  connect(ui->m_lookup,&QToolButton::clicked,m_gl,&NGLScene::lookup);
+
 }
 
 MainWindow::~MainWindow()
@@ -46,4 +56,3 @@ MainWindow::~MainWindow()
   delete ui;
   delete m_gl;
 }
-
