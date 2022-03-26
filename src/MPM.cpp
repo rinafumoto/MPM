@@ -378,7 +378,6 @@ void MPM::updateDeformationGradients()
         int x_index = static_cast<int>(m_position[k].m_x/m_gridsize)-1;
         int y_index = static_cast<int>(m_position[k].m_y/m_gridsize)-1;
         Eigen::Matrix3f gVel = Eigen::Matrix3f::Zero();
-        Eigen::Matrix3f weightSum = Eigen::Matrix3f::Zero();
         for (int i=x_index; i<x_index+4; ++i)
         {
             for (int j=y_index; j<y_index+4; ++j)
@@ -391,14 +390,13 @@ void MPM::updateDeformationGradients()
                         for(int m=0; m<3; ++m)
                         {
                             gVel(l,m) += m_gridVelocity[j*(m_resolutionX+1)+i][l]*dInterpolate(i,j,m_position[k])[m];
-                            weightSum(l,m) += dInterpolate(i,j,m_position[k])[m];
                         }
                     }
                 }
             }
         }
 
-        m_elastic[k] = (Eigen::Matrix3f::Identity()+gVel)*m_elastic[k];
+        m_elastic[k] = (Eigen::Matrix3f::Identity()+m_timestep*gVel)*m_elastic[k];
 
         Eigen::JacobiSVD<Eigen::Matrix3f> svd(m_elastic[k], Eigen::ComputeFullU | Eigen::ComputeFullV);
         Eigen::Matrix3f sigma = Eigen::Matrix3f::Zero();
@@ -432,6 +430,7 @@ void MPM::gridToParticle()
                 }
             }
         }
+
         m_velocity[k] = pic + m_blending*(m_velocity[k]-flip);
 
         // Particle-based collision handling.
