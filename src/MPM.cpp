@@ -548,8 +548,8 @@ void MPM::saveFrame(int _frame, std::string _filename)
 void MPM::prep(int _numParticles, float _gridsize, int _resolutionX, int _resolutionY)
 {
     m_gridsize = _gridsize;
-    m_resolutionX = _resolutionX;
-    m_resolutionY = _resolutionY;
+    m_resolutionX = _resolutionX+2;
+    m_resolutionY = _resolutionY+2;
     m_numParticles = _numParticles;
     m_position.resize(m_numParticles, 0.0f);
 

@@ -554,6 +554,23 @@
               </property>
              </widget>
             </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_22">
+              <property name="text">
+               <string>FPS</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QSpinBox" name="m_fps">
+              <property name="maximum">
+               <number>1000</number>
+              </property>
+              <property name="value">
+               <number>25</number>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -610,6 +627,13 @@
           <widget class="QWidget" name="widget_9" native="true">
            <layout class="QGridLayout" name="gridLayout_6">
             <item row="0" column="1">
+             <widget class="QPushButton" name="m_load">
+              <property name="text">
+               <string>Load</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="3">
              <widget class="QPushButton" name="m_play">
               <property name="text">
                <string>Play</string>
@@ -628,6 +652,13 @@
                </size>
               </property>
              </spacer>
+            </item>
+            <item row="0" column="2">
+             <widget class="QPushButton" name="m_playstep">
+              <property name="text">
+               <string>Step</string>
+              </property>
+             </widget>
             </item>
            </layout>
           </widget>
@@ -654,6 +685,7 @@
   </widget>
  </widget>
  <tabstops>
+  <tabstop>tabWidget</tabstop>
   <tabstop>m_shape</tabstop>
   <tabstop>m_posX</tabstop>
   <tabstop>m_posY</tabstop>
@@ -682,6 +714,13 @@
   <tabstop>m_gridVel</tabstop>
   <tabstop>m_filename</tabstop>
   <tabstop>m_frame</tabstop>
+  <tabstop>m_fps</tabstop>
+  <tabstop>m_save</tabstop>
+  <tabstop>m_textfile</tabstop>
+  <tabstop>m_lookup</tabstop>
+  <tabstop>m_load</tabstop>
+  <tabstop>m_playstep</tabstop>
+  <tabstop>m_play</tabstop>
  </tabstops>
  <resources/>
  <connections/>

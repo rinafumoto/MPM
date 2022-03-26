@@ -193,6 +193,11 @@ void NGLScene::setFrame(int i)
   m_frame = i;
 }
 
+void NGLScene::setFPS(int i)
+{
+  m_fps = i;
+}
+
 void NGLScene::save()
 {
   if(m_filename.length() <= 0)
@@ -216,6 +221,7 @@ void NGLScene::save()
       file.open(fmt::format("../render/{}.txt", m_filename));
       std::stringstream ss;
       ss<<"frame: "<<m_frame<<'\n';
+      ss<<"fps: "<<m_fps<<'\n';
       ss<<"gridsize: "<<m_gridsize<<'\n';
       ss<<"resolutionX: "<<m_resolutionX<<'\n';
       ss<<"resolutionY: "<<m_resolutionY<<'\n';
@@ -240,7 +246,7 @@ void NGLScene::save()
       m_mpm->saveFrame(0, m_filename);
       for(int i=1; i<=m_frame; ++i)
       {
-        for(int j=0; j<static_cast<int>(0.04f/m_timestep); ++j)
+        for(int j=0; j<static_cast<int>(1.0f/m_fps/m_timestep); ++j)
         {
           std::cout<<"Frame: "<<i<<" Sim: "<<j<<'\n';
           m_mpm->simulate();
@@ -265,7 +271,7 @@ void NGLScene::lookup()
   // std::cout<<filename<<'\n';
 }
 
-void NGLScene::play()
+void NGLScene::load()
 {
   if(m_textfile.length() <= 0)
   {
@@ -283,6 +289,8 @@ void NGLScene::play()
     {
       getline(file, line);
       m_totalFrame = std::stoi(line.substr(7, line.length()));
+      getline(file, line);
+      m_playfps = std::stof(line.substr(5, line.length()));
       getline(file, line);
       float gridsize = std::stof(line.substr(10, line.length()));
       getline(file, line);
@@ -308,8 +316,8 @@ void NGLScene::play()
 
         m_mpm = std::make_unique<MPM>();
         m_mpm->prep(numParticles, gridsize, resolutionX, resolutionY);
-        update();
-        m_playtimer = startTimer(40);
+        m_loaded = true;
+        playstep();
       }
       else
       {
@@ -324,6 +332,30 @@ void NGLScene::play()
       msgBox.setText(QString::fromStdString(fmt::format("Unable to open the file: ../render/{}.txt", m_textfile)));
       msgBox.exec();
     }
+  }
+}
+
+void NGLScene::playstep()
+{
+  if(m_loaded && m_currentFrame <= m_totalFrame)
+  {
+    std::cout<<"Frame: "<<m_currentFrame<<'\n';
+    m_mpm->play(m_currentFrame, m_textfile);
+    ++m_currentFrame;
+    if(m_currentFrame == m_totalFrame && m_playtimer >= 0)
+    {
+      killTimer(m_playtimer);
+      m_playtimer = -1;        
+    }
+    update();
+  }
+}
+
+void NGLScene::play()
+{
+  if(m_loaded)
+  {
+    m_playtimer = startTimer(static_cast<int>(1.0f/m_playfps*1000.0f));
   }
 }
 
@@ -365,6 +397,7 @@ void NGLScene::timerEvent ( QTimerEvent *_event)
   {
     if(m_currentFrame <= m_totalFrame)
     {
+      std::cout<<"Frame: "<<m_currentFrame<<'\n';
       m_mpm->play(m_currentFrame, m_textfile);
       ++m_currentFrame;
       if(m_currentFrame == m_totalFrame)

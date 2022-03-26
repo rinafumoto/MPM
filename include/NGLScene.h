@@ -99,9 +99,12 @@ public slots :
 
     void setFilename(QString s);
     void setFrame(int i);
+    void setFPS(int i);
     void save();
     void setTextfile(QString s);
     void lookup();
+    void load();
+    void playstep();
     void play();
     
 private:
@@ -158,6 +161,8 @@ private:
     int m_playtimer = -1;
     int m_totalFrame = -1;
     int m_currentFrame = 0;
+    bool m_loaded = 0;
+    int m_playfps = 0;
 
     //----------------------------------------------------------------------------------------------------------------------
     /// @brief variables to store the simulation settings from GUI
@@ -184,6 +189,8 @@ private:
     std::string m_filename;
     int m_frame = 50;
     std::string m_textfile;
+    int m_fps = 25;
+    
 
 };
 
