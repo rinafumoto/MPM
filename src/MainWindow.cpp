@@ -52,6 +52,8 @@ MainWindow::MainWindow(QWidget *parent)
   connect(ui->m_textfile,SIGNAL(textChanged(QString)),m_gl,SLOT(setTextfile(QString)));
   connect(ui->m_lookup,&QToolButton::clicked,m_gl,&NGLScene::lookup);
 
+  connect(m_gl,SIGNAL(fileSelected(QString)),ui->m_textfile,SLOT(setText(QString)));
+
 }
 
 MainWindow::~MainWindow()

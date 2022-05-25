@@ -190,7 +190,9 @@ private:
     int m_frame = 50;
     std::string m_textfile;
     int m_fps = 25;
-    
+
+signals:
+    void fileSelected(QString filename);    
 
 };
 

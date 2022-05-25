@@ -2,6 +2,7 @@
 #include <QGuiApplication>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QFileInfo>
 
 #include "NGLScene.h"
 #include <ngl/NGLInit.h>
@@ -209,7 +210,7 @@ void NGLScene::save()
   else
   {
     std::ifstream ifile;
-    ifile.open(fmt::format("../render/{}.txt", m_filename));
+    ifile.open(fmt::format("../render/info/{}.txt", m_filename));
     if(ifile) {
       QMessageBox msgBox;
       msgBox.setText("The file name is already used.");
@@ -218,7 +219,7 @@ void NGLScene::save()
     else 
     {
       std::ofstream file;
-      file.open(fmt::format("../render/{}.txt", m_filename));
+      file.open(fmt::format("../render/info/{}.txt", m_filename));
       std::stringstream ss;
       ss<<"frame: "<<m_frame<<'\n';
       ss<<"fps: "<<m_fps<<'\n';
@@ -267,8 +268,11 @@ void NGLScene::setTextfile(QString s)
 
 void NGLScene::lookup()
 { 
-  std::string filename = QFileDialog::getOpenFileName(this, tr("Select file"), "../render/", tr("Text Files (*.txt)")).toStdString();
-  std::cout<<filename<<'\n';
+  QString file = QFileDialog::getOpenFileName(this, tr("Select file"), "../render/info/", tr("Text Files (*.txt)"));
+  QString filename = QFileInfo(file).baseName();
+  m_textfile = filename.toStdString();
+  emit(fileSelected(filename));
+  // std::cout<<m_textfile<<'\n';
 }
 
 void NGLScene::load()
@@ -284,7 +288,7 @@ void NGLScene::load()
     int numParticles = 0;
     std::string line, token;
 
-    std::ifstream file(fmt::format("../render/{}.txt", m_textfile));
+    std::ifstream file(fmt::format("../render/info/{}.txt", m_textfile));
     if(file.is_open())
     {
       getline(file, line);
@@ -329,7 +333,7 @@ void NGLScene::load()
     else
     {
       QMessageBox msgBox;
-      msgBox.setText(QString::fromStdString(fmt::format("Unable to open the file: ../render/{}.txt", m_textfile)));
+      msgBox.setText(QString::fromStdString(fmt::format("Unable to open the file: ../render/info/{}.txt", m_textfile)));
       msgBox.exec();
     }
   }

@@ -61,21 +61,7 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
             {
                 m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
                 m_velocity.push_back(_vel);
-                // m_velocity.push_back({20.0f*initialMass/m_timestep,0.0f,0.0f});
                 m_mass.push_back(initialMass);
-
-                // m_position.push_back({i*m_gridsize,j*m_gridsize,0.0f});
-                // m_velocity.push_back(_vel);
-                // m_mass.push_back(initialMass/4.0f);
-                // m_position.push_back({(i+0.5f)*m_gridsize,(j)*m_gridsize,0.0f});
-                // m_velocity.push_back(_vel);
-                // m_mass.push_back(initialMass/4.0f);
-                // m_position.push_back({(i)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
-                // m_velocity.push_back(_vel);
-                // m_mass.push_back(initialMass/4.0f);
-                // m_position.push_back({(i+0.5f)*m_gridsize,(j+0.5f)*m_gridsize,0.0f});
-                // m_velocity.push_back(_vel);
-                // m_mass.push_back(initialMass/4.0f);
             }
         }        
     }
