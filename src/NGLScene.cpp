@@ -28,8 +28,9 @@ void NGLScene::initialise()
   if(m_playtimer >= 0)
   {
     killTimer(m_playtimer);
-    m_playtimer = -1;        
+    m_playtimer = -1;
   }
+  m_loaded = false;
   m_mpm = std::make_unique<MPM>();
   m_mpm->initialise(m_shape, m_pos, m_size, m_vel, m_hardening, m_density, m_youngs, m_poisson, m_compression, m_stretch, m_blending, m_gridsize, m_timestep, m_force, m_resolutionX, m_resolutionY);
   update();
@@ -37,7 +38,7 @@ void NGLScene::initialise()
 
 void NGLScene::step()
 {
-  if(m_playtimer >= 0)
+  if(m_loaded)
   {
     killTimer(m_playtimer);
     m_playtimer = -1;
@@ -49,7 +50,7 @@ void NGLScene::step()
 
 void NGLScene::start()
 {
-  if(m_playtimer >= 0)
+  if(m_loaded)
   {
     killTimer(m_playtimer);
     m_playtimer = -1;
@@ -268,15 +269,18 @@ void NGLScene::setTextfile(QString s)
 
 void NGLScene::lookup()
 { 
+  stop();
+  pause();
   QString file = QFileDialog::getOpenFileName(this, tr("Select file"), "../render/info/", tr("Text Files (*.txt)"));
   QString filename = QFileInfo(file).baseName();
   m_textfile = filename.toStdString();
+  load();
   emit(fileSelected(filename));
-  // std::cout<<m_textfile<<'\n';
 }
 
 void NGLScene::load()
 {
+  stop();
   if(m_textfile.length() <= 0)
   {
     QMessageBox msgBox;
@@ -309,8 +313,6 @@ void NGLScene::load()
       {
         stop();
         m_currentFrame = 0;
-        m_particleVel = 0;
-        m_gridVel = 0;
         getline(file, line);
         getline(file, line);
         std::istringstream stream(line);
@@ -341,7 +343,11 @@ void NGLScene::load()
 
 void NGLScene::playstep()
 {
-  if(m_loaded && m_currentFrame <= m_totalFrame)
+  if(!m_loaded)
+  {
+    load();
+  }
+  if (m_currentFrame <= m_totalFrame)
   {
     std::cout<<"Frame: "<<m_currentFrame<<'\n';
     m_mpm->play(m_currentFrame, m_textfile);
@@ -357,9 +363,19 @@ void NGLScene::playstep()
 
 void NGLScene::play()
 {
-  if(m_loaded)
+  if(!m_loaded)
   {
-    m_playtimer = startTimer(static_cast<int>(1.0f/m_playfps*1000.0f));
+    load();
+  }
+  m_playtimer = startTimer(static_cast<int>(1.0f/m_playfps*1000.0f));
+}
+
+void NGLScene::pause()
+{
+  if(m_playtimer >= 0)
+  {
+    killTimer(m_playtimer);
+    m_playtimer = -1;
   }
 }
 
@@ -419,7 +435,7 @@ void NGLScene::paintGL()
   // Clear the screen and depth buffer
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glViewport(0,0,m_win.width,m_win.height);
-  m_mpm->render(m_win.width,m_win.height, m_particleVel, m_gridVel);
+  m_mpm->render(m_win.width,m_win.height, m_particleVel, m_gridVel, m_loaded);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -106,6 +106,7 @@ public slots :
     void load();
     void playstep();
     void play();
+    void pause();
     
 private:
 

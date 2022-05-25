@@ -49,6 +49,7 @@ MainWindow::MainWindow(QWidget *parent)
   connect(ui->m_load,&QPushButton::clicked,m_gl,&NGLScene::load);
   connect(ui->m_playstep,&QPushButton::clicked,m_gl,&NGLScene::playstep);
   connect(ui->m_play,&QPushButton::clicked,m_gl,&NGLScene::play);
+  connect(ui->m_pause,&QPushButton::clicked,m_gl,&NGLScene::pause);
   connect(ui->m_textfile,SIGNAL(textChanged(QString)),m_gl,SLOT(setTextfile(QString)));
   connect(ui->m_lookup,&QToolButton::clicked,m_gl,&NGLScene::lookup);
 

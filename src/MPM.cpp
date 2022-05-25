@@ -436,7 +436,7 @@ void MPM::gridToParticle()
 
 ////////// Render //////////
 
-void MPM::render(size_t _w, size_t _h, bool _particle, bool _grid)
+void MPM::render(size_t _w, size_t _h, bool _particle, bool _grid, bool _play)
 {
     const auto ColourShader = "ColourShader";
     const auto SolidShader = "SolidShader";
@@ -478,28 +478,31 @@ void MPM::render(size_t _w, size_t _h, bool _particle, bool _grid)
     ngl::ShaderLib::setUniform("viewportSize",ngl::Vec2(_w,_h));
     ngl::ShaderLib::setUniform("MVP",project*view);
 
-    if(_particle)
+    if(!_play)
     {
-        m_vao->bind();
-            m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
-            m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-            m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
-            m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
-            m_vao->setNumIndices(m_numParticles);
-            m_vao->draw();
-        m_vao->unbind();
-    }
+        if(_particle)
+        {
+            m_vao->bind();
+                m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_position[0].m_x));
+                m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+                m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_numParticles*sizeof(ngl::Vec3),m_velocity[0].m_x));
+                m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+                m_vao->setNumIndices(m_numParticles);
+                m_vao->draw();
+            m_vao->unbind();
+        }
 
-    if(_grid)
-    {
-        m_vao->bind();
-            m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_indices.size()*sizeof(ngl::Vec3),m_indices[0].m_x));
-            m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
-            m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_gridVelocity.size()*sizeof(ngl::Vec3),m_gridVelocity[0].m_x));
-            m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
-            m_vao->setNumIndices(m_indices.size());
-            m_vao->draw();
-        m_vao->unbind();          
+        if(_grid)
+        {
+            m_vao->bind();
+                m_vao->setData(0,ngl::MultiBufferVAO::VertexData(m_indices.size()*sizeof(ngl::Vec3),m_indices[0].m_x));
+                m_vao->setVertexAttributePointer(0,3,GL_FLOAT,0,0);
+                m_vao->setData(1,ngl::MultiBufferVAO::VertexData(m_gridVelocity.size()*sizeof(ngl::Vec3),m_gridVelocity[0].m_x));
+                m_vao->setVertexAttributePointer(1,3,GL_FLOAT,0,0);              
+                m_vao->setNumIndices(m_indices.size());
+                m_vao->draw();
+            m_vao->unbind();          
+        }
     }
 }
 

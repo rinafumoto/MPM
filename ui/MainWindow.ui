@@ -626,20 +626,6 @@
          <item>
           <widget class="QWidget" name="widget_9" native="true">
            <layout class="QGridLayout" name="gridLayout_6">
-            <item row="0" column="1">
-             <widget class="QPushButton" name="m_load">
-              <property name="text">
-               <string>Load</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="3">
-             <widget class="QPushButton" name="m_play">
-              <property name="text">
-               <string>Play</string>
-              </property>
-             </widget>
-            </item>
             <item row="0" column="0">
              <spacer name="horizontalSpacer_3">
               <property name="orientation">
@@ -657,6 +643,27 @@
              <widget class="QPushButton" name="m_playstep">
               <property name="text">
                <string>Step</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="3">
+             <widget class="QPushButton" name="m_play">
+              <property name="text">
+               <string>Play</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QPushButton" name="m_load">
+              <property name="text">
+               <string>Load</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="4">
+             <widget class="QPushButton" name="m_pause">
+              <property name="text">
+               <string>Pause</string>
               </property>
              </widget>
             </item>
