@@ -1,0 +1,18 @@
+frame: 500
+fps: 1000
+gridsize: 0.01
+resolutionX: 40
+resolutionY: 40
+shape: 2
+pos: 20 25
+size: 10 10
+Velocity: 0 0
+hardening: 10
+density: 400
+youngs: 140000
+poisson: 0.2
+compression: 0.019
+stretch: 0.0075
+blending: 0.95
+timestep: 0.0001
+force: 0 0
