@@ -267,8 +267,8 @@ void NGLScene::setTextfile(QString s)
 
 void NGLScene::lookup()
 { 
-  // std::string filename = QFileDialog::getOpenFileName(this, tr("Select file"), "../render/", tr("Text Files (*.txt)")).toStdString();
-  // std::cout<<filename<<'\n';
+  std::string filename = QFileDialog::getOpenFileName(this, tr("Select file"), "../render/", tr("Text Files (*.txt)")).toStdString();
+  std::cout<<filename<<'\n';
 }
 
 void NGLScene::load()

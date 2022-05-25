@@ -206,8 +206,8 @@ float MPM::bSpline(float _x)
 
 ngl::Vec3 MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
 {
-    return {dBSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize),
-            bSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline((_x.m_y-_j*m_gridsize)/m_gridsize),
+    return {dBSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
+            bSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*dBSpline((_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
             0.0f};
 }
 

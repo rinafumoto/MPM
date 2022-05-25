@@ -263,7 +263,7 @@
                <number>6</number>
               </property>
               <property name="value">
-               <double>0.000005000000000</double>
+               <double>0.000100000000000</double>
               </property>
              </widget>
             </item>
@@ -316,7 +316,7 @@
                <double>0.000100000000000</double>
               </property>
               <property name="value">
-               <double>0.001000000000000</double>
+               <double>0.010000000000000</double>
               </property>
              </widget>
             </item>
@@ -547,7 +547,7 @@
             <item row="1" column="1">
              <widget class="QSpinBox" name="m_frame">
               <property name="maximum">
-               <number>500</number>
+               <number>10000</number>
               </property>
               <property name="value">
                <number>50</number>

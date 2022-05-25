@@ -178,8 +178,8 @@ private:
     double m_compression = 0.025f;
     double m_stretch = 0.0075f;
     double m_blending = 0.95f;
-    double m_gridsize = 0.001f;
-    double m_timestep = 0.000005f;
+    double m_gridsize = 0.01f;
+    double m_timestep = 0.0001f;
     ngl::Vec3 m_force = 0.0f;
     int m_resolutionX = 20;
     int m_resolutionY = 20;
