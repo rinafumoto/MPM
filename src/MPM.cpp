@@ -15,6 +15,7 @@ auto randomPositivezDist=std::uniform_real_distribution<float>(0.0f,1.0f);
 
 void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel, float _hardening, float _density, float _youngs, float _poisson, float _compression, float _stretch, float _blending, float _gridsize, float _timestep, ngl::Vec3 _force, int _resolutionX, int _resolutionY)
 {
+    // Apply the simulation settings
     m_lambda = (_youngs*_poisson)/((1.0f+_poisson)*(1.0f-2.0f*_poisson));
     m_mu = _youngs/(2.0f*(1.0f+_poisson));
     m_hardening = _hardening;
@@ -40,12 +41,14 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
         m_vao->setData(ngl::MultiBufferVAO::VertexData(0,0));
     m_vao->unbind();
 
+    // Calculate the initial position of square edges
     int left = static_cast<int>(_pos.m_x-_size.m_x/2.0f);
     int right = static_cast<int>(_pos.m_x+_size.m_x/2.0f);
     int bottom = static_cast<int>(_pos.m_y-_size.m_y/2.0f);
     int top = static_cast<int>(_pos.m_y+_size.m_y/2.0f);
     float initialMass;
 
+    // Square Grid
     if(_shape == 0)
     {
         // Initialise particles at cell corners
@@ -65,6 +68,7 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
             }
         }        
     }
+    // Square Random
     else if (_shape == 1)
     {
         // Initialise particles at random positions
@@ -93,15 +97,17 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
     {
         // Initialise particles from CSV file.
         std::string filepath;
+        // Low Resolution Circle (Points separation = 0.3)
         if(_shape == 2){
             filepath = "../data/circle_03.csv";
         }
+        // High Resolution Circle (Points separation = 0.1)
         else {
             filepath = "../data/circle_01.csv";
         }
 
+        // Count the number of particles.
         m_numParticles = 0;
-
         std::ifstream file(filepath);
         std::string line, l;
         if(file.is_open())
@@ -117,6 +123,7 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
             std::cout<<"Unable to open the file\n";
         }
 
+        // Initialise particles.
         initialMass = _density*_size.m_x*m_gridsize*_size.m_y*m_gridsize*2*asin(1.0)/m_numParticles;
         m_position.reserve(m_numParticles);
         m_velocity.reserve(m_numParticles);
@@ -161,6 +168,7 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
         m_solid.push_back({(static_cast<float>(i)+0.5f)*m_gridsize,(m_resolutionY-0.5f)*m_gridsize, 0.0f});        
     }
 
+    // Generate a vector for indices used for visualising grid velocities.
     m_indices.resize((m_resolutionX+1)*(m_resolutionY+1));
     for(int i=0; i<m_resolutionX+1; ++i)
     {
@@ -171,6 +179,7 @@ void MPM::initialise(int _shape, ngl::Vec3 _pos, ngl::Vec3 _size, ngl::Vec3 _vel
     }
 }
 
+// Interpolation function
 float MPM::interpolate(float _i, float _j, ngl::Vec3 _x)
 {
     return bSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize);
@@ -190,6 +199,7 @@ float MPM::bSpline(float _x)
     return 0.0f;
 }
 
+// Gradient of the interpolation function
 ngl::Vec3 MPM::dInterpolate(float _i, float _j, ngl::Vec3 _x)
 {
     return {dBSpline((_x.m_x-_i*m_gridsize)/m_gridsize)*bSpline((_x.m_y-_j*m_gridsize)/m_gridsize)/m_gridsize,
@@ -220,6 +230,7 @@ float MPM::dBSpline(float _x)
     return result;
 }
 
+// Convert NGL vector to Eigen vector
 Eigen::Vector3f MPM::eigenVec3(ngl::Vec3 _v)
 {
     return Eigen::Vector3f(_v.m_x, _v.m_y, _v.m_z);
@@ -301,6 +312,7 @@ void MPM::computeDensityAndVolume()
 
 void MPM::updateGridVelocity()
 {
+    // Calculate grid forces.
     std::vector<ngl::Vec3> forces;
     forces.resize((m_resolutionX+1)*(m_resolutionY+1), 0.0f);
 
@@ -361,6 +373,7 @@ void MPM::updateDeformationGradients()
 {
     for(int k=0; k<m_numParticles; ++k)
     {
+        // Calculate velocity gradient
         int x_index = static_cast<int>(m_position[k].m_x/m_gridsize)-1;
         int y_index = static_cast<int>(m_position[k].m_y/m_gridsize)-1;
         Eigen::Matrix3f gVel = Eigen::Matrix3f::Zero();
@@ -370,7 +383,6 @@ void MPM::updateDeformationGradients()
             {
                 if(i>=0 && i<=m_resolutionX && j>=0 && j<=m_resolutionY)
                 {
-                    // Eigen::Matrix3f mat;
                     for(int l=0; l<3; ++l)
                     {
                         for(int m=0; m<3; ++m)
@@ -382,8 +394,10 @@ void MPM::updateDeformationGradients()
             }
         }
 
+        // Update elastic part of the deformation gradient temporarily.
         m_elastic[k] = (Eigen::Matrix3f::Identity()+m_timestep*gVel)*m_elastic[k];
 
+        // Clamp the singular values to the permitted range
         Eigen::JacobiSVD<Eigen::Matrix3f> svd(m_elastic[k], Eigen::ComputeFullU | Eigen::ComputeFullV);
         Eigen::Matrix3f sigma = Eigen::Matrix3f::Zero();
         for(int i=0; i<3; ++i)
@@ -391,6 +405,7 @@ void MPM::updateDeformationGradients()
             sigma(i,i) = std::clamp(svd.singularValues()(i),1.0f-m_compression,1.0f+m_stretch);
         }
 
+        // Update the elastic and plastic part of the deformation gradient
         m_plastic[k] = svd.matrixV()*sigma.inverse()*svd.matrixU().transpose()*m_elastic[k]*m_plastic[k];
         m_elastic[k] = svd.matrixU()*sigma*svd.matrixV().transpose();
     }

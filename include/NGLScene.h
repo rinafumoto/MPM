@@ -69,7 +69,7 @@ public slots :
     void stop();
 
     //----------------------------------------------------------------------------------------------------------------------
-	/// @brief a slot to set the values from GUI
+	/// @brief slots to set the values from GUI for Settings tab
 	/// @param i the integer value to set
 	/// @param d the double value to set
 	/// @param b the boolean value to set
@@ -97,6 +97,12 @@ public slots :
     void setParticleVel(bool b);
     void setGridVel(bool b);
 
+    //----------------------------------------------------------------------------------------------------------------------
+	/// @brief slots to set the values from GUI for Save tab
+	/// @param i the integer value to set
+	/// @param d the double value to set
+	/// @param b the boolean value to set
+    //----------------------------------------------------------------------------------------------------------------------
     void setFilename(QString s);
     void setFrame(int i);
     void setFPS(int i);
@@ -187,12 +193,18 @@ private:
     bool m_particleVel = 0;
     bool m_gridVel = 0;
 
+    //----------------------------------------------------------------------------------------------------------------------
+    /// @brief variables to store the values from save tab
+    //----------------------------------------------------------------------------------------------------------------------
     std::string m_filename;
     int m_frame = 50;
     std::string m_textfile;
     int m_fps = 25;
 
 signals:
+    //----------------------------------------------------------------------------------------------------------------------
+    /// @brief Custom signal for setting selected filename to the input box
+    //----------------------------------------------------------------------------------------------------------------------
     void fileSelected(QString filename);    
 
 };

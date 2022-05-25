@@ -183,7 +183,7 @@ void NGLScene::setGridVel(bool b)
   m_gridVel = b;
 }
 
-// Functions for save tab actions
+////////// Functions called on a value change for save tab //////////
 
 void NGLScene::setFilename(QString s)
 {
@@ -199,6 +199,13 @@ void NGLScene::setFPS(int i)
 {
   m_fps = i;
 }
+
+void NGLScene::setTextfile(QString s)
+{
+  m_textfile = s.toStdString();
+}
+
+////////// Functions called on a button click for save tab //////////
 
 void NGLScene::save()
 {
@@ -260,11 +267,6 @@ void NGLScene::save()
       msgBox.exec();    
     }
   }
-}
-
-void NGLScene::setTextfile(QString s)
-{
-  m_textfile = s.toStdString();
 }
 
 void NGLScene::lookup()

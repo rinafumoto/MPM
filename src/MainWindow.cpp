@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
   connect(ui->m_pause,&QPushButton::clicked,m_gl,&NGLScene::pause);
   connect(ui->m_textfile,SIGNAL(textChanged(QString)),m_gl,SLOT(setTextfile(QString)));
   connect(ui->m_lookup,&QToolButton::clicked,m_gl,&NGLScene::lookup);
-
+  // connect custom signal from NGL Scene to the filename line edit
   connect(m_gl,SIGNAL(fileSelected(QString)),ui->m_textfile,SLOT(setText(QString)));
 
 }
